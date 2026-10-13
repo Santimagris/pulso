@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="es-AR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pulso</title>
+    <script>
+      // GitHub Pages sirve este archivo para cualquier ruta inexistente (ej. un link mal copiado
+      // como /pulso/** o /pulso/algo). Volvemos a la raíz de la app, conservando el #ruta.
+      var seg = location.pathname.split("/")[1] || "";
+      var base = seg && /^[\w-]+$/.test(seg) ? "/" + seg + "/" : "/";
+      location.replace(base + location.hash);
+    </script>
+  </head>
+  <body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#09090b;font-family:system-ui,sans-serif">
+    <a href="/pulso/" style="color:#34d399">Abrir Pulso</a>
+  </body>
+</html>
