@@ -67,8 +67,8 @@ export function Tarjetas() {
         }
       />
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-5">
-        <div className="grid content-start gap-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-5">
+        <div className="grid grid-cols-1 content-start gap-4">
           <Card className="p-4">
             <div className="flex items-center justify-between gap-2">
               <MonthStepper mes={mes} onChange={(d) => setMes((m) => addMonthsISO(m, d))} className="-ml-2" />
@@ -108,7 +108,7 @@ export function Tarjetas() {
           )}
         </div>
 
-        <div className="grid content-start gap-4">
+        <div className="grid grid-cols-1 content-start gap-4">
           <Card className="p-5">
             <SectionTitle className="px-0">Próximos meses</SectionTitle>
             <BarChart

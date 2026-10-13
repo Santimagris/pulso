@@ -21,7 +21,7 @@ export function Ayuda() {
   return (
     <>
       <PageHeader title="Cómo funciona" subtitle="Todo el sistema en 2 minutos." />
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Bloque icon={<Sparkles className="size-4" />} title="La idea">
           <p>
             Anotás <b>una vez por semana</b> cuánta plata tenés. Con eso Pulso deduce cuánto gastaste, sin que tengas que anotar cada café.

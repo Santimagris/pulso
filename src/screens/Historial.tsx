@@ -80,7 +80,7 @@ function Meses() {
   const meses = [...engine.resumenes].reverse();
   if (!meses.length) return <Card><Empty title="Todavía no hay meses" text="Hacé tu primer corte." /></Card>;
   return (
-    <div className="grid gap-3 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
       {meses.map((r) => {
         const linea = (label: string, value: ReactNode, cls?: string) => (
           <div className="flex justify-between gap-3">

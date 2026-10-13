@@ -1,6 +1,6 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import { cn } from "@/lib/cn";
 
@@ -26,23 +26,31 @@ export function Sheet({
   wide?: boolean;
 }) {
   useKeyboardInset(open);
+  const contentRef = useRef<HTMLDivElement>(null);
   return (
     <Dialog.Root open={open} onOpenChange={(o) => !o && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/65 backdrop-blur-[2px] data-[state=closed]:animate-fade-out data-[state=open]:animate-fade-in" />
         <Dialog.Content
+          ref={contentRef}
           aria-describedby={undefined}
           onOpenAutoFocus={(e) => {
-            // En el celu no abrimos el teclado de golpe: molesta más de lo que ayuda.
-            if (window.matchMedia("(max-width: 1023px)").matches) e.preventDefault();
+            e.preventDefault();
+            // En el celu no abrimos el teclado de golpe (molesta más de lo que ayuda).
+            // En la compu, el cursor arranca en el primer campo.
+            if (!window.matchMedia("(min-width: 1024px)").matches) return;
+            contentRef.current?.querySelector<HTMLElement>("input:not([type=hidden]):not([type=file]):not([disabled]), textarea")?.focus();
           }}
           className={cn(
             "fixed z-50 flex flex-col border-line-2 bg-surface outline-none",
-            // Celu: hoja desde abajo
+            // Celu: hoja desde abajo (en tablet, centrada y con ancho acotado)
             "inset-x-0 bottom-[var(--kb)] max-h-[calc(100dvh-var(--kb)-env(safe-area-inset-top)-12px)] rounded-t-[28px] border-t shadow-float",
+            "sm:mx-auto sm:max-w-[620px] sm:border-x",
             "data-[state=closed]:animate-sheet-down data-[state=open]:animate-sheet-up",
-            // Compu: modal centrado
-            "lg:inset-auto lg:top-1/2 lg:left-1/2 lg:max-h-[86dvh] lg:w-[min(560px,calc(100vw-48px))] lg:rounded-3xl lg:border lg:data-[state=closed]:animate-pop-out lg:data-[state=open]:animate-pop-in",
+            // Compu: modal centrado (el centrado lo da translate; la animación solo escala)
+            "lg:inset-auto lg:top-1/2 lg:left-1/2 lg:mx-0 lg:max-w-none lg:-translate-x-1/2 lg:-translate-y-1/2",
+            "lg:max-h-[min(86dvh,860px)] lg:w-[min(560px,calc(100vw-48px))] lg:rounded-3xl lg:border",
+            "lg:data-[state=closed]:animate-pop-out lg:data-[state=open]:animate-pop-in",
             wide && "lg:w-[min(720px,calc(100vw-48px))]",
           )}
         >
@@ -56,7 +64,7 @@ export function Sheet({
               <X className="size-5" />
             </Dialog.Close>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-4 lg:px-6">{children}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-1 pb-4 lg:px-6">{children}</div>
           {footer && <div className="shrink-0 border-t border-line bg-surface/95 px-5 pt-3 safe-bottom lg:px-6 lg:pb-5">{footer}</div>}
         </Dialog.Content>
       </Dialog.Portal>

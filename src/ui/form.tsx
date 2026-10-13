@@ -85,6 +85,7 @@ export function MoneyInput({
       </span>
       <input
         id={id}
+        size={1}
         autoFocus={autoFocus}
         inputMode={moneda === "USD" ? "decimal" : "numeric"}
         enterKeyHint="done"
@@ -117,6 +118,7 @@ export function TextInput({ className, ...rest }: InputHTMLAttributes<HTMLInputE
   return (
     <div className={cn(box, "h-12 px-3.5", className)}>
       <input
+        size={1}
         autoComplete="off"
         className="w-full min-w-0 bg-transparent text-[16px] text-ink outline-none placeholder:text-faint"
         {...rest}
@@ -131,6 +133,7 @@ export function DateInput({ value, onChange, id, max, min }: { value: string; on
       <input
         id={id}
         type="date"
+        size={1}
         value={value}
         max={max}
         min={min}

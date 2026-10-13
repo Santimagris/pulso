@@ -44,15 +44,15 @@ export function Home() {
       {!hayCortes ? (
         <PrimerosPasos />
       ) : (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-5">
-          <div className="grid content-start gap-4 lg:gap-5">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-5">
+          <div className="grid grid-cols-1 content-start gap-4 lg:gap-5">
             <CorteDue engine={engine} />
             <Hero engine={engine} />
             <SobranteDeMes engine={engine} />
             <SemanaPasada w={engine.ultimaCerrada} />
             <MesActual engine={engine} />
           </div>
-          <div className="grid content-start gap-4 lg:gap-5">
+          <div className="grid grid-cols-1 content-start gap-4 lg:gap-5">
             <Promedios />
             <GraficoSemanas engine={engine} />
             <ProximosPagos />
@@ -431,16 +431,19 @@ function Promedios() {
     },
   ];
   return (
-    <Card className="grid divide-y divide-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+    <Card className="grid divide-y divide-line sm:grid-cols-3 sm:divide-x sm:divide-y-0 lg:grid-cols-1 lg:divide-x-0 lg:divide-y xl:grid-cols-3 xl:divide-x xl:divide-y-0">
       {items.map((it) => (
-        <div key={it.label} className="flex items-center justify-between gap-3 px-5 py-3.5 sm:block sm:p-4">
+        <div
+          key={it.label}
+          className="flex items-center justify-between gap-3 px-5 py-3.5 sm:block sm:p-4 lg:flex lg:px-5 lg:py-3.5 xl:block xl:p-4"
+        >
           <div className="min-w-0">
             <div className="text-[13px] font-medium text-muted">{it.label}</div>
-            <div className="text-[12px] text-faint sm:hidden">{it.sub}</div>
+            <div className="text-[12px] text-faint sm:hidden lg:block xl:hidden">{it.sub}</div>
           </div>
-          <div className="shrink-0 text-right sm:mt-1 sm:text-left">
+          <div className="shrink-0 text-right sm:mt-1 sm:text-left lg:mt-0 lg:text-right xl:mt-1 xl:text-left">
             <div className="text-lg font-semibold tracking-tight text-ink">{it.value}</div>
-            <div className="mt-0.5 hidden truncate text-xs text-faint sm:block">{it.sub}</div>
+            <div className="mt-0.5 hidden truncate text-xs text-faint sm:block lg:hidden xl:block">{it.sub}</div>
           </div>
         </div>
       ))}

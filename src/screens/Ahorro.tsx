@@ -36,8 +36,8 @@ export function Ahorro() {
   return (
     <>
       <PageHeader title="Ahorro" subtitle="Primero te pagás a vos; después gastás." />
-      <div className="grid gap-4 lg:grid-cols-2 lg:gap-5">
-        <div className="grid content-start gap-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
+        <div className="grid grid-cols-1 content-start gap-4">
           {/* Hero */}
           <Card className="relative overflow-hidden p-5 lg:p-6">
             <div className="pointer-events-none absolute -top-20 -left-10 size-56 rounded-full bg-brand/10 blur-3xl" />
@@ -134,7 +134,7 @@ export function Ahorro() {
           )}
         </div>
 
-        <div className="grid content-start gap-4">
+        <div className="grid grid-cols-1 content-start gap-4">
           {/* Historia */}
           <Card className="p-5">
             <SectionTitle className="px-0">Ahorro real por mes</SectionTitle>

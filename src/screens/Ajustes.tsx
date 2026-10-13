@@ -87,8 +87,8 @@ export function Ajustes() {
   return (
     <>
       <PageHeader title="Ajustes" />
-      <div className="grid gap-5 lg:grid-cols-2">
-        <div className="grid content-start gap-5">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <div className="grid grid-cols-1 content-start gap-5">
           <section>
             <SectionTitle>Plan</SectionTitle>
             <Card className="overflow-hidden">
@@ -124,7 +124,7 @@ export function Ajustes() {
             <SectionTitle>Dólar</SectionTitle>
             <Card className="grid gap-3 p-5">
               <div className="flex items-end gap-2">
-                <div className="flex-1">
+                <div className="min-w-0 flex-1">
                   <div className="mb-1.5 text-[13px] text-ink-2">Pesos por dólar</div>
                   <TextInput inputMode="decimal" value={tcText} onChange={(e) => setTcText(e.target.value)} onBlur={guardarTc} />
                 </div>
@@ -140,7 +140,7 @@ export function Ajustes() {
           </section>
         </div>
 
-        <div className="grid content-start gap-5">
+        <div className="grid grid-cols-1 content-start gap-5">
           <section>
             <SectionTitle>Tus datos</SectionTitle>
             <Card className="grid gap-4 p-5">
