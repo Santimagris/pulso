@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import { reduce } from "./actions";
-import { bill, billPresupuestoARS, billsDelMes, cuotasRestantes, sugerirPrimerMes } from "./bills";
+import {
+  bill,
+  billPresupuestoARS,
+  billsDelMes,
+  conMontoDelMes,
+  cuotaRecurrente,
+  cuotasRestantes,
+  sugerirPrimerMes,
+  tieneMontoDelMes,
+} from "./bills";
 import { mondaysInMonth, weekRangeLabel } from "./dates";
 import { emptyData } from "./defaults";
 import { computeEngine, consultar, necesidadReservaGastos, planMes } from "./engine";
@@ -374,6 +383,61 @@ describe("consultas", () => {
 });
 
 /* ------------------------------- tarjetas ------------------------------- */
+
+describe("fijos con monto por mes (ej: la cuota del Fiat)", () => {
+  const fiat = (): Recurrente => ({
+    id: "fiat",
+    tarjetaId: "visa",
+    descripcion: "Plan Fiat",
+    moneda: "ARS",
+    monto: $(400_000),
+    montos: { "2026-10": $(400_000) },
+    desdeMes: "2026-10",
+    veces: {},
+    creadoEn: "x",
+  });
+
+  it("usa el monto anotado del mes; si no hay, el último anotado antes; si no, el base", () => {
+    const r = { ...fiat(), montos: { "2026-10": $(400_000), "2026-12": $(420_000) } };
+    expect(cuotaRecurrente(r, "2026-10")).toBe($(400_000));
+    expect(cuotaRecurrente(r, "2026-11")).toBe($(400_000));
+    expect(cuotaRecurrente(r, "2026-12")).toBe($(420_000));
+    expect(cuotaRecurrente(r, "2027-03")).toBe($(420_000));
+    expect(cuotaRecurrente({ ...fiat(), montos: undefined }, "2026-11")).toBe($(400_000));
+  });
+
+  it("anotar el monto de un mes no cambia los meses anteriores y actualiza el estimado", () => {
+    const r = conMontoDelMes(fiat(), "2026-11", $(412_000));
+    expect(cuotaRecurrente(r, "2026-10")).toBe($(400_000));
+    expect(cuotaRecurrente(r, "2026-11")).toBe($(412_000));
+    expect(cuotaRecurrente(r, "2027-01")).toBe($(412_000));
+    expect(r.monto).toBe($(412_000));
+    expect(tieneMontoDelMes(r, "2026-11")).toBe(true);
+    expect(tieneMontoDelMes(r, "2026-12")).toBe(false);
+  });
+
+  it("corregir un mes viejo no pisa el estimado de los que vienen", () => {
+    const r = conMontoDelMes(conMontoDelMes(fiat(), "2026-11", $(412_000)), "2026-10", $(401_000));
+    expect(cuotaRecurrente(r, "2026-10")).toBe($(401_000));
+    expect(r.monto).toBe($(412_000));
+  });
+
+  it("borrar el monto de un mes vuelve al estimado", () => {
+    const r = conMontoDelMes(conMontoDelMes(fiat(), "2026-11", $(412_000)), "2026-11", null);
+    expect(cuotaRecurrente(r, "2026-11")).toBe($(400_000));
+    expect(r.monto).toBe($(400_000));
+  });
+
+  it("el resumen usa el monto del mes, y con 2 cuotas juntas el presupuesto cuenta una (la de ese mes)", () => {
+    const d = base();
+    d.tarjetas.push(visa);
+    d.recurrentes.push({ ...conMontoDelMes(fiat(), "2026-11", $(412_000)), veces: { "2026-11": 2 } });
+    const nov = bill(d, "visa", "2026-11");
+    expect(nov.ars).toBe($(824_000));
+    expect(billPresupuestoARS(nov, 1500)).toBe($(412_000));
+    expect(planMes(d, "2026-12").tarjetas).toBe($(412_000));
+  });
+});
 
 describe("resúmenes de tarjeta", () => {
   const data = (): Data => {

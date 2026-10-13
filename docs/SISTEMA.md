@@ -60,6 +60,11 @@ libre           = sueldo + aguinaldo al presupuesto − ahorroDelSueldo − tarj
 base semanal    = max(0, libre) / lunes del mes
 ```
 
+**Fijos de tarjeta** (`Recurrente`): la cuota de un mes es la anotada para ese mes
+(`montos[mes]`); si no hay, la del último mes anotado antes; si no, `monto` (base). Anotar un
+mes no cambia los anteriores y deja ese monto como estimado de los siguientes (`conMontoDelMes`).
+`veces[mes]` (0/1/2) solo mueve la caja: el presupuesto cuenta una cuota por mes.
+
 El sueldo cuenta para el mes al que **corresponde** (`Ingreso.mes`), no el de la fecha
 (ej: el sueldo de junio cobrado el 31 de mayo).
 

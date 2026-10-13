@@ -34,7 +34,7 @@ export interface Bill {
   /** Pagos convertidos a pesos con el tipo de cambio de cada pago. */
   pagadoEquivARS: number;
   /**
-   * Corrimiento de los fijos en este resumen: Σ monto × (veces − 1).
+   * Corrimiento de los fijos en este resumen: Σ cuota del mes × (veces − 1).
    * Positivo si vinieron cuotas de más (2 juntas), negativo si no vino ninguna.
    */
   corrimientoARS: number;
@@ -67,18 +67,46 @@ export function vecesRecurrente(r: Recurrente, mes: ISOMonth): number {
   return typeof v === "number" && v >= 0 ? v : 1;
 }
 
+/**
+ * Monto de UNA cuota del fijo en `mes`: el anotado para ese mes; si no hay, el del último mes
+ * anotado antes (es la mejor estimación); si no hay ninguno, el monto base.
+ */
+export function cuotaRecurrente(r: Recurrente, mes: ISOMonth): number {
+  const montos = r.montos ?? {};
+  if (typeof montos[mes] === "number") return montos[mes];
+  let previo: ISOMonth | null = null;
+  for (const m of Object.keys(montos)) if (m < mes && (previo === null || m > previo)) previo = m;
+  return previo !== null ? montos[previo] : r.monto;
+}
+
+/** El monto de ese mes está anotado (no es estimado). */
+export const tieneMontoDelMes = (r: Recurrente, mes: ISOMonth): boolean => typeof r.montos?.[mes] === "number";
+
+/**
+ * Anota (o borra, con null) el monto real de una cuota en un mes. Los demás meses no cambian;
+ * el monto base pasa a ser el del último mes anotado (estimado para lo que viene).
+ */
+export function conMontoDelMes(r: Recurrente, mes: ISOMonth, monto: number | null): Recurrente {
+  const montos = { ...(r.montos ?? {}) };
+  if (monto == null) delete montos[mes];
+  else montos[mes] = monto;
+  const ultimo = Object.keys(montos).sort().at(-1);
+  return { ...r, montos, monto: ultimo ? montos[ultimo] : r.monto };
+}
+
 export function billLines(data: Data, tarjetaId: string, mes: ISOMonth): BillLine[] {
   const lines: BillLine[] = [];
   for (const r of data.recurrentes) {
     if (r.tarjetaId !== tarjetaId || !recurrenteActivo(r, mes)) continue;
     const veces = vecesRecurrente(r, mes);
-    if (veces === 0 || r.monto <= 0) continue;
+    const cuota = cuotaRecurrente(r, mes);
+    if (veces === 0 || cuota <= 0) continue;
     lines.push({
       kind: "recurrente",
       refId: r.id,
       descripcion: r.descripcion,
       moneda: r.moneda,
-      monto: r.monto * veces,
+      monto: cuota * veces,
       especial: false,
       veces,
     });
@@ -111,7 +139,7 @@ export function bill(data: Data, tarjetaId: string, mes: ISOMonth): Bill {
   const corrimiento = (moneda: Moneda) =>
     data.recurrentes
       .filter((r) => r.tarjetaId === tarjetaId && r.moneda === moneda && recurrenteActivo(r, mes))
-      .reduce((s, r) => s + r.monto * (vecesRecurrente(r, mes) - 1), 0);
+      .reduce((s, r) => s + cuotaRecurrente(r, mes) * (vecesRecurrente(r, mes) - 1), 0);
   return {
     tarjetaId,
     mes,

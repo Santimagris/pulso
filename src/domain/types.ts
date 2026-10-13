@@ -106,8 +106,13 @@ export interface Recurrente {
   tarjetaId: string;
   descripcion: string;
   moneda: Moneda;
-  /** Monto estimado por mes (actualizalo cuando cambie). */
+  /** Último monto conocido de UNA cuota: es el estimado para los meses sin monto anotado. */
   monto: number;
+  /**
+   * Monto real de una cuota en meses puntuales (ej: el Fiat de cada mes).
+   * Un mes sin monto anotado usa el del último mes anotado antes; si no hay, `monto`.
+   */
+  montos?: Record<ISOMonth, number>;
   desdeMes: ISOMonth;
   /** Último mes inclusive; sin valor = indefinido. */
   hastaMes?: ISOMonth;

@@ -75,9 +75,13 @@ export function Ayuda() {
 
         <Bloque icon={<Repeat className="size-4" />} title="Fijos de tarjeta (plan del auto)">
           <p>
-            Los fijos se cargan solos en cada resumen. Si un mes te vienen <b>dos cuotas juntas</b> (o ninguna), tocá “vino 2×” en ese
-            resumen: la caja de ese mes lo muestra, pero el presupuesto cuenta <b>una por mes</b>, así un corrimiento de fechas no te hunde un
-            mes y te infla el siguiente.
+            Los fijos se cargan solos en cada resumen con el <b>último monto anotado</b>, así los meses que vienen ya lo tienen en
+            cuenta. Cuando te llega el resumen, tocás el fijo en <b>Tarjetas</b> y anotás el monto real de ese mes: queda para ese mes
+            y pasa a ser el estimado de los siguientes.
+          </p>
+          <p>
+            Si un mes te vienen <b>dos cuotas juntas</b> (o ninguna), lo marcás ahí mismo: la caja de ese mes lo muestra, pero el
+            presupuesto cuenta <b>una por mes</b>, así un corrimiento de fechas no te hunde un mes y te infla el siguiente.
           </p>
         </Bloque>
 

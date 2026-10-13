@@ -2,7 +2,7 @@ import { CircleCheck, CreditCard, Plus, Repeat } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { BarChart, type BarDatum } from "@/charts/BarChart";
-import { billEstimadoARS, billPresupuestoARS, billsDelMes, billTotalARS, cuotaEnMes, cuotasRestantes, ultimoMes } from "@/domain/bills";
+import { tieneMontoDelMes, billEstimadoARS, billPresupuestoARS, billsDelMes, billTotalARS, cuotaEnMes, cuotasRestantes, ultimoMes } from "@/domain/bills";
 import { addMonthsISO, dayLabel, monthLabel, monthShort } from "@/domain/dates";
 import { formatARS, formatMoney } from "@/domain/money";
 import type { Bill } from "@/domain/bills";
@@ -10,7 +10,6 @@ import { useMesActual } from "@/lib/hooks";
 import { cn } from "@/lib/cn";
 import { openSheet } from "@/lib/ui-store";
 import { PageHeader } from "@/layout/AppShell";
-import { VecesFijo } from "@/sheets/CardSheets";
 import { useApp } from "@/sync/store";
 import { Badge, Button, Card, Dot, Empty, MonthStepper, Row, SectionTitle } from "@/ui/primitives";
 
@@ -169,7 +168,9 @@ function ResumenCard({ b, mesActual }: { b: Bill; mesActual: string }) {
           return (
             <li key={`${l.kind}-${l.refId}`} className="border-b border-line/70 last:border-0">
               <button
-                onClick={() => openSheet(l.kind === "compra" ? { kind: "compra", compraId: l.refId } : { kind: "recurrente", recurrenteId: l.refId })}
+                onClick={() =>
+                  openSheet(l.kind === "compra" ? { kind: "compra", compraId: l.refId } : { kind: "fijoMes", recurrenteId: l.refId, mes: b.mes })
+                }
                 className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-white/[0.03]"
               >
                 <div className="min-w-0 flex-1">
@@ -179,24 +180,30 @@ function ResumenCard({ b, mesActual }: { b: Bill; mesActual: string }) {
                   </div>
                   <div className="text-[12px] text-faint">
                     {l.cuota ? (l.cuota.de > 1 ? `cuota ${l.cuota.n} de ${l.cuota.de}` : "1 pago") : (
-                      <span className="inline-flex items-center gap-1">
-                        <Repeat className="size-3" /> fijo{l.veces && l.veces !== 1 ? ` · vino ${l.veces}×` : ""}
+                      <span>
+                        <Repeat className="mr-1 inline size-3 align-[-2px]" />
+                        fijo · {r && tieneMontoDelMes(r, b.mes) ? "anotado" : "estimado · tocá para anotar"}
+                        {l.veces && l.veces !== 1 ? ` · ${l.veces} cuotas` : ""}
                       </span>
                     )}
                   </div>
                 </div>
                 <div className="shrink-0 text-[14px] text-ink tnum">{formatMoney(l.monto, l.moneda)}</div>
               </button>
-              {r && !b.pagado && <div className="-mt-1 px-4 pb-2.5"><VecesFijo r={r} mes={b.mes} /></div>}
             </li>
           );
         })}
         {data.recurrentes
           .filter((r) => r.tarjetaId === b.tarjetaId && (r.veces?.[b.mes] ?? 1) === 0 && r.desdeMes <= b.mes && (!r.hastaMes || b.mes <= r.hastaMes))
           .map((r) => (
-            <li key={`cero-${r.id}`} className="flex items-center justify-between gap-3 border-b border-line/70 px-4 py-2.5 last:border-0">
-              <span className="text-[13px] text-faint">{r.descripcion} · este mes no vino</span>
-              <VecesFijo r={r} mes={b.mes} />
+            <li key={`cero-${r.id}`} className="border-b border-line/70 last:border-0">
+              <button
+                onClick={() => openSheet({ kind: "fijoMes", recurrenteId: r.id, mes: b.mes })}
+                className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-[13px] text-faint transition hover:bg-white/[0.03]"
+              >
+                <span>{r.descripcion} · este mes no vino</span>
+                <span className="text-brand">Cambiar</span>
+              </button>
             </li>
           ))}
       </ul>

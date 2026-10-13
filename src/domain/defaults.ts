@@ -42,7 +42,7 @@ export function normalizeData(raw: unknown): Data {
     ingresos: arr(o.ingresos),
     tarjetas: arr(o.tarjetas),
     compras: arr(o.compras),
-    recurrentes: arr(o.recurrentes).map((r) => ({ ...r, veces: r.veces ?? {} })),
+    recurrentes: arr(o.recurrentes).map((r) => ({ ...r, veces: r.veces ?? {}, montos: r.montos ?? {} })),
     pagos: arr(o.pagos),
     especiales: arr(o.especiales),
     sobrantes: arr(o.sobrantes),

@@ -1,6 +1,6 @@
 import { useUI } from "@/lib/ui-store";
 
-import { CompraSheet, PagoSheet, RecurrenteSheet, TarjetaSheet } from "./CardSheets";
+import { CompraSheet, FijoMesSheet, PagoSheet, RecurrenteSheet, TarjetaSheet } from "./CardSheets";
 import { CorteSheet } from "./CorteSheet";
 import { MetaSheet, PlanSheet } from "./PlanSheets";
 import { AccionesSheet, ConsultaSheet, EspecialSheet, IngresoSheet, SobranteSheet } from "./SmallSheets";
@@ -30,6 +30,8 @@ export function SheetHost() {
       return <TarjetaSheet key={key} open={open} tarjetaId={spec.tarjetaId} />;
     case "recurrente":
       return <RecurrenteSheet key={key} open={open} recurrenteId={spec.recurrenteId} tarjetaId={spec.tarjetaId} />;
+    case "fijoMes":
+      return <FijoMesSheet key={key} open={open} recurrenteId={spec.recurrenteId} mes={spec.mes} />;
     case "especial":
       return <EspecialSheet key={key} open={open} especialId={spec.especialId} />;
     case "ingreso":

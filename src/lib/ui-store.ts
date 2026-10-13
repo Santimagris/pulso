@@ -11,6 +11,7 @@ export type SheetSpec =
   | { kind: "pago"; tarjetaId: string; mes: ISOMonth }
   | { kind: "tarjeta"; tarjetaId?: string }
   | { kind: "recurrente"; recurrenteId?: string; tarjetaId?: string }
+  | { kind: "fijoMes"; recurrenteId: string; mes: ISOMonth }
   | { kind: "especial"; especialId?: string }
   | { kind: "ingreso"; ingresoId?: string; tipo?: "sueldo" | "aguinaldo" | "extra" }
   | { kind: "plan" }

@@ -1,13 +1,22 @@
 import { CreditCard } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { bill, billEstimadoARS, sugerirPrimerMes, ultimoMes } from "@/domain/bills";
+import {
+  bill,
+  billEstimadoARS,
+  conMontoDelMes,
+  cuotaRecurrente,
+  sugerirPrimerMes,
+  tieneMontoDelMes,
+  ultimoMes,
+  vecesRecurrente,
+} from "@/domain/bills";
 import { addMonthsISO, monthLabel, monthShort, mondaysInMonth } from "@/domain/dates";
 import { CARD_COLORS, CARD_SUGGESTIONS } from "@/domain/defaults";
 import { formatARS, formatMoney } from "@/domain/money";
 import type { Compra, Moneda, Recurrente, Tarjeta } from "@/domain/types";
 import { cn, nowISO, uid } from "@/lib/cn";
-import { closeSheet, toast } from "@/lib/ui-store";
+import { closeSheet, openSheet, toast } from "@/lib/ui-store";
 import { useApp } from "@/sync/store";
 import { Chip, DateInput, Field, MoneyInput, Segmented, Stepper, Switch, TextInput } from "@/ui/form";
 import { Button, Card, Empty } from "@/ui/primitives";
@@ -376,19 +385,25 @@ export function RecurrenteSheet({ open, recurrenteId, tarjetaId: tarjetaInicial 
   const [hasta, setHasta] = useState(prev?.hastaMes ?? addMonthsISO(hoy.slice(0, 7), 12));
   const valido = desc.trim() && tarjetaId && monto && monto > 0;
 
+  // Al crear, el monto es el del primer mes. Al editar, si cambia, se anota desde este mes
+  // (o desde el inicio si arranca más adelante): los meses anteriores no se tocan.
+  const mesRef = desde > hoy.slice(0, 7) ? desde : hoy.slice(0, 7);
+
   function guardar() {
     if (!valido || !monto) return;
-    const r: Recurrente = {
+    let r: Recurrente = {
       id: prev?.id ?? uid(),
       tarjetaId,
       descripcion: desc.trim(),
       moneda,
-      monto,
+      monto: prev?.monto ?? monto,
+      montos: prev?.montos ?? { [desde]: monto },
       desdeMes: desde,
       hastaMes: tieneFin ? hasta : undefined,
       veces: prev?.veces ?? {},
       creadoEn: prev?.creadoEn ?? nowISO(),
     };
+    if (prev && monto !== prev.monto) r = conMontoDelMes(r, mesRef, monto);
     dispatch({ type: "recurrente/save", recurrente: r });
     closeSheet();
     toast(prev ? "Fijo actualizado" : "Fijo agregado", "good");
@@ -445,8 +460,12 @@ export function RecurrenteSheet({ open, recurrenteId, tarjetaId: tarjetaInicial 
           <TarjetaPicker value={tarjetaId} onChange={setTarjetaId} />
         </Field>
         <Field
-          label="Monto por mes"
-          hint="Si cambia mes a mes (como el plan del auto), poné el último y actualizalo cada tanto."
+          label={prev ? "Último monto de la cuota" : "Monto de la cuota"}
+          hint={
+            prev
+              ? `Si lo cambiás acá, queda anotado para ${monthLabel(mesRef, { capital: false })} en adelante. Para un mes puntual, tocá el fijo en el resumen de ese mes (Tarjetas).`
+              : "Poné el del último resumen. Si cambia mes a mes (como el plan del auto), cada mes anotás el real tocándolo en el resumen."
+          }
           aside={<Segmented size="sm" value={moneda} onChange={setMoneda} options={[{ value: "ARS", label: "$" }, { value: "USD", label: "US$" }]} />}
         >
           <MoneyInput value={monto} onChange={setMonto} moneda={moneda} size="lg" />
@@ -473,32 +492,97 @@ export function RecurrenteSheet({ open, recurrenteId, tarjetaId: tarjetaInicial 
   );
 }
 
-/** Ajuste rápido: cuántas veces vino un fijo en el resumen de un mes. */
-export function VecesFijo({ r, mes }: { r: Recurrente; mes: string }) {
+/* --------------------------- Fijo: monto de un mes --------------------------- */
+
+/** El monto real de un fijo en el resumen de un mes (ej: la cuota del Fiat de octubre) y cuántas cuotas vinieron. */
+export function FijoMesSheet({ open, recurrenteId, mes }: { open: boolean; recurrenteId: string; mes: string }) {
+  const data = useApp((s) => s.data);
   const dispatch = useApp((s) => s.dispatch);
-  const veces = r.veces?.[mes] ?? 1;
-  const set = (n: number) => {
-    const next = { ...(r.veces ?? {}) };
-    if (n === 1) delete next[mes];
-    else next[mes] = n;
-    dispatch({ type: "recurrente/save", recurrente: { ...r, veces: next } });
-  };
+  const r = data.recurrentes.find((x) => x.id === recurrenteId);
+  const [monto, setMonto] = useState<number | null>(r ? cuotaRecurrente(r, mes) : null);
+  const [veces, setVeces] = useState(r ? vecesRecurrente(r, mes) : 1);
+  if (!r) return null;
+
+  const t = data.tarjetas.find((x) => x.id === r.tarjetaId);
+  const mesNombre = monthLabel(mes, { capital: false, year: false });
+  const anotado = tieneMontoDelMes(r, mes);
+  const esUltimo = Object.keys(r.montos ?? {}).every((m) => m <= mes);
+
+  function guardar() {
+    if (!r || !monto) return;
+    const next = conMontoDelMes(r, mes, monto);
+    const v = { ...(next.veces ?? {}) };
+    if (veces === 1) delete v[mes];
+    else v[mes] = veces;
+    dispatch({ type: "recurrente/save", recurrente: { ...next, veces: v } });
+    closeSheet();
+    toast(`${r.descripcion} de ${mesNombre} guardado`, "good");
+  }
+
   return (
-    <div className="flex items-center gap-1.5">
-      <span className="mr-1 text-[12px] text-faint">Vino</span>
-      {[0, 1, 2].map((n) => (
-        <button
-          key={n}
-          onClick={() => set(n)}
-          className={cn(
-            "h-7 min-w-8 rounded-lg px-2 text-[12px] font-semibold transition",
-            veces === n ? "bg-brand/15 text-brand" : "bg-white/[0.05] text-muted hover:text-ink",
-          )}
+    <Sheet
+      open={open}
+      onClose={closeSheet}
+      title={`${r.descripcion} · ${mesNombre}`}
+      description={`${t?.nombre ?? "Tarjeta"} · resumen de ${monthLabel(mes, { capital: false })}`}
+      footer={
+        <div className="grid gap-2">
+          <Button variant="primary" size="lg" block disabled={!monto} onClick={guardar}>
+            Guardar
+          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            {anotado ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  dispatch({ type: "recurrente/save", recurrente: conMontoDelMes(r, mes, null) });
+                  closeSheet();
+                }}
+              >
+                Volver al estimado
+              </Button>
+            ) : (
+              <span />
+            )}
+            <Button variant="ghost" size="sm" onClick={() => openSheet({ kind: "recurrente", recurrenteId: r.id })}>
+              Editar fijo
+            </Button>
+          </div>
+        </div>
+      }
+    >
+      <div className="grid gap-5">
+        <Field
+          label="Cuota de este mes"
+          hint={anotado ? `Anotado para ${mesNombre}.` : "Por ahora es un estimado (el último monto anotado). Poné el real cuando te llegue el resumen."}
         >
-          {n === 0 ? "0" : `${n}×`}
-        </button>
-      ))}
-    </div>
+          <MoneyInput moneda={r.moneda} value={monto} onChange={setMonto} size="lg" />
+        </Field>
+        <Field label="¿Cuántas cuotas vinieron en este resumen?" hint="Si vinieron dos juntas, el presupuesto igual cuenta una por mes: no te hunde este mes ni te infla el siguiente.">
+          <Segmented
+            value={String(veces)}
+            onChange={(v) => setVeces(Number(v))}
+            options={[
+              { value: "0", label: "Ninguna" },
+              { value: "1", label: "Una" },
+              { value: "2", label: "Dos" },
+            ]}
+          />
+        </Field>
+        {monto != null && monto > 0 && (
+          <Card className="grid gap-1.5 p-4 text-[13px] text-muted">
+            <div className="flex justify-between gap-3">
+              <span>En este resumen</span>
+              <span className="text-ink tnum">{formatMoney(monto * veces, r.moneda)}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span>Estimado para los meses que vienen</span>
+              <span className="text-ink-2 tnum">{formatMoney(esUltimo ? monto : r.monto, r.moneda)}</span>
+            </div>
+          </Card>
+        )}
+      </div>
+    </Sheet>
   );
 }
-
