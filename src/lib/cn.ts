@@ -1,0 +1,10 @@
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+export const uid = () => crypto.randomUUID();
+
+export const nowISO = () => new Date().toISOString();
