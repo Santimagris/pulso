@@ -1,4 +1,4 @@
-import { CalendarCheck, Check, ChevronRight, CircleCheck, Gauge, PiggyBank, Sparkles, TrendingDown, TrendingUp, TriangleAlert } from "lucide-react";
+import { CalendarCheck, Check, ChevronRight, CircleCheck, Gauge, PiggyBank, Sparkles, TrendingDown, TrendingUp, TriangleAlert, Wallet } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { useMemo } from "react";
@@ -7,7 +7,7 @@ import { BarChart, Legend, type BarDatum } from "@/charts/BarChart";
 import { billEstimadoARS, billsDelMes, billTotalARS } from "@/domain/bills";
 import { addMonthsISO, daysBetween, dayLabel, monthLabel, monthShort, weekRangeLabel } from "@/domain/dates";
 import type { EngineResult, WeekResult } from "@/domain/engine";
-import { formatARS, formatPercent } from "@/domain/money";
+import { formatARS, formatPercent, formatUSD } from "@/domain/money";
 import { useEngine, useMesActual, useMetrics } from "@/lib/hooks";
 import { cn } from "@/lib/cn";
 import { navigate } from "@/lib/router";
@@ -48,6 +48,7 @@ export function Home() {
           <div className="grid grid-cols-1 content-start gap-4 lg:gap-5">
             <CorteDue engine={engine} />
             <Hero engine={engine} />
+            <Reservas engine={engine} />
             <SobranteDeMes engine={engine} />
             <SemanaPasada w={engine.ultimaCerrada} />
             <MesActual engine={engine} />
@@ -251,6 +252,46 @@ function Hero({ engine }: { engine: EngineResult }) {
         </div>
       </div>
     </Card>
+  );
+}
+
+/** Saldo de cada reserva según el último corte (los mismos números que usa Ahorro). */
+function Reservas({ engine }: { engine: EngineResult }) {
+  const m = useMetrics();
+  const u = engine.ultimoCorte;
+  if (!u || m.ahorroAcumulado == null) return null;
+  const cuando = u.fecha === engine.hoy ? "al corte de hoy" : `al corte del ${dayLabel(u.fecha)}`;
+  const items = [
+    {
+      label: "Reserva de gastos",
+      icon: <Wallet className="size-4" />,
+      value: u.mp + u.efectivo,
+      detalle: u.efectivo ? `incluye ${formatARS(u.efectivo)} en efectivo` : null,
+    },
+    {
+      label: "Reserva de ahorro",
+      icon: <PiggyBank className="size-4" />,
+      value: m.ahorroAcumulado,
+      detalle: m.usdTenes ? `incluye ${formatUSD(m.usdTenes)}` : null,
+    },
+  ];
+  return (
+    <div className="grid grid-cols-2 gap-4 lg:gap-5">
+      {items.map((it) => (
+        <Card key={it.label} className="p-4 lg:p-5">
+          <div className="flex items-center gap-1.5 text-[13px] font-medium text-muted">
+            {/* El ícono solo donde entra al lado del título sin partirlo en dos líneas. */}
+            <span className="hidden shrink-0 text-faint sm:block lg:hidden xl:block">{it.icon}</span>
+            {it.label}
+          </div>
+          <HeroMoney value={it.value} className="mt-2.5 text-[22px] leading-none" />
+          <div className="mt-2 text-[12px] leading-snug text-faint">
+            {it.detalle && <div>{it.detalle}</div>}
+            {cuando}
+          </div>
+        </Card>
+      ))}
+    </div>
   );
 }
 
