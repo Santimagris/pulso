@@ -3,7 +3,7 @@ import { useUI } from "@/lib/ui-store";
 import { CompraSheet, FijoMesSheet, PagoSheet, RecurrenteSheet, TarjetaSheet } from "./CardSheets";
 import { CorteSheet } from "./CorteSheet";
 import { MetaSheet, PlanSheet } from "./PlanSheets";
-import { AccionesSheet, ConsultaSheet, EspecialSheet, IngresoSheet, SobranteSheet } from "./SmallSheets";
+import { AccionesSheet, AhorrarSheet, ConsultaSheet, EspecialSheet, IngresoSheet, SobranteSheet } from "./SmallSheets";
 
 /**
  * Renderiza la hoja activa. La última abierta queda montada (cerrada) para que Radix anime
@@ -42,5 +42,7 @@ export function SheetHost() {
       return <MetaSheet key={key} open={open} />;
     case "sobrante":
       return <SobranteSheet key={key} open={open} />;
+    case "ahorrar":
+      return <AhorrarSheet key={key} open={open} />;
   }
 }

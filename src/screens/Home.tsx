@@ -6,7 +6,7 @@ import { useMemo } from "react";
 import { BarChart, Legend, type BarDatum } from "@/charts/BarChart";
 import { billEstimadoARS, billsDelMes, billTotalARS } from "@/domain/bills";
 import { addMonthsISO, daysBetween, dayLabel, monthLabel, monthShort, weekRangeLabel } from "@/domain/dates";
-import type { EngineResult, WeekResult } from "@/domain/engine";
+import { necesidadReservaGastos, type EngineResult, type WeekResult } from "@/domain/engine";
 import { formatARS, formatPercent, formatUSD } from "@/domain/money";
 import { useEngine, useMesActual, useMetrics } from "@/lib/hooks";
 import { cn } from "@/lib/cn";
@@ -49,6 +49,7 @@ export function Home() {
             <CorteDue engine={engine} />
             <Hero engine={engine} />
             <Reservas engine={engine} />
+            <ParaAhorrar engine={engine} />
             <SobranteDeMes engine={engine} />
             <SemanaPasada w={engine.ultimaCerrada} />
             <MesActual engine={engine} />
@@ -255,17 +256,19 @@ function Hero({ engine }: { engine: EngineResult }) {
   );
 }
 
-/** Saldo de cada reserva según el último corte (los mismos números que usa Ahorro). */
+/** Saldo de cada reserva: el del último corte más lo que pasaste al ahorro después (los mismos números que usa Ahorro). */
 function Reservas({ engine }: { engine: EngineResult }) {
   const m = useMetrics();
   const u = engine.ultimoCorte;
-  if (!u || m.ahorroAcumulado == null) return null;
-  const cuando = u.fecha === engine.hoy ? "al corte de hoy" : `al corte del ${dayLabel(u.fecha)}`;
+  const r = engine.reservas;
+  if (!u || !r || m.ahorroAcumulado == null) return null;
+  const dia = r.fecha === engine.hoy ? "hoy" : `el ${dayLabel(r.fecha)}`;
+  const cuando = r.pasado ? `actualizado ${dia}` : r.fecha === engine.hoy ? "al corte de hoy" : `al corte del ${dayLabel(r.fecha)}`;
   const items = [
     {
       label: "Reserva de gastos",
       icon: <Wallet className="size-4" />,
-      value: u.mp + u.efectivo,
+      value: r.gastos,
       detalle: u.efectivo ? `incluye ${formatARS(u.efectivo)} en efectivo` : null,
     },
     {
@@ -292,6 +295,35 @@ function Reservas({ engine }: { engine: EngineResult }) {
         </Card>
       ))}
     </div>
+  );
+}
+
+/** Montos menores (el vuelto de redondear) no merecen la tarjeta: $10.000 en centavos. */
+const MINIMO_PARA_AHORRAR = 1_000_000;
+
+/** Plata de más en la reserva de gastos (el día de cobro, el ahorro del mes): invita a pasarla al ahorro. */
+function ParaAhorrar({ engine }: { engine: EngineResult }) {
+  const data = useApp((s) => s.data);
+  const w = engine.actual;
+  const u = engine.ultimoCorte;
+  const r = necesidadReservaGastos(data, engine);
+  // Con el corte atrasado los números no son de esta semana: primero el corte.
+  if (!r || !w || !u || u.fecha < w.lunes || r.paraAhorrar < MINIMO_PARA_AHORRAR) return null;
+  const mes = (m: string) => monthLabel(m, { capital: false, year: false });
+  return (
+    <Card className="flex animate-rise items-center gap-3.5 p-4">
+      <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-good/12 text-good">
+        <PiggyBank className="size-5" />
+      </div>
+      <div className="min-w-0 flex-1 text-[13px] text-muted">
+        <div className="text-[15px] font-medium text-ink">Te sobran {formatARS(r.paraAhorrar)} en gastos</div>
+        No los necesitás para tus límites ni tus tarjetas de {mes(w.mes)}
+        {r.mesQueViene ? ` ni de ${mes(r.mesQueViene.mes)}` : ""}.
+      </div>
+      <Button size="sm" variant="secondary" onClick={() => openSheet({ kind: "ahorrar" })}>
+        Ahorrar
+      </Button>
+    </Card>
   );
 }
 

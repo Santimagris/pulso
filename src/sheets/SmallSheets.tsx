@@ -1,8 +1,8 @@
-import { CalendarCheck, CreditCard, Gift, Gauge, PiggyBank, Wallet } from "lucide-react";
+import { CalendarCheck, CreditCard, Gift, Gauge, PiggyBank, TriangleAlert, Wallet } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 
 import { dayLabel, monthLabel, weekRangeLabel } from "@/domain/dates";
-import { consultar, sortedCortes } from "@/domain/engine";
+import { consultar, necesidadReservaGastos, sortedCortes } from "@/domain/engine";
 import { formatARS } from "@/domain/money";
 import type { GastoEspecial, Ingreso } from "@/domain/types";
 import { useEngine } from "@/lib/hooks";
@@ -16,6 +16,7 @@ import { Sheet } from "@/ui/sheet";
 /* ------------------------------- Acciones (+) ------------------------------- */
 
 export function AccionesSheet({ open }: { open: boolean }) {
+  const puedeAhorrar = useApp((s) => s.data.settings.usaReservaAhorro && s.data.cortes.length > 0);
   const item = (icon: ReactNode, title: string, text: string, onClick: () => void, primary?: boolean) => (
     <button
       onClick={onClick}
@@ -34,6 +35,8 @@ export function AccionesSheet({ open }: { open: boolean }) {
     <Sheet open={open} onClose={closeSheet} title="¿Qué querés anotar?">
       <div className="grid gap-2.5 pb-2">
         {item(<CalendarCheck className="size-5" />, "Hacer el corte", "Cuánto tenés hoy. Lo hacés los lunes.", () => openSheet({ kind: "corte" }), true)}
+        {puedeAhorrar &&
+          item(<PiggyBank className="size-5" />, "Ahorrar", "Pasá plata de gastos a la reserva de ahorro.", () => openSheet({ kind: "ahorrar" }))}
         {item(<CreditCard className="size-5" />, "Compra con tarjeta", "En 1 o más cuotas.", () => openSheet({ kind: "compra" }))}
         {item(<Gauge className="size-5" />, "¿Cuánto me queda?", "Consultá la semana sin guardar nada.", () => openSheet({ kind: "consulta" }))}
         {item(<Gift className="size-5" />, "Gasto especial", "Algo grande que sale del ahorro (regalo, viaje).", () => openSheet({ kind: "especial" }))}
@@ -51,7 +54,7 @@ export function ConsultaSheet({ open }: { open: boolean }) {
   const ultimo = sortedCortes(data).at(-1);
   const { settings } = data;
   const [mp, setMp] = useState<number | null>(null);
-  const [ahorro, setAhorro] = useState<number | null>(ultimo?.ahorro ?? 0);
+  const [ahorro, setAhorro] = useState<number | null>(engine.reservas?.ahorro ?? ultimo?.ahorro ?? 0);
   const [efectivo, setEfectivo] = useState<number | null>(ultimo?.efectivo ?? 0);
   const [usd, setUsd] = useState<number | null>(ultimo?.usd ?? 0);
 
@@ -312,6 +315,77 @@ export function SobranteSheet({ open }: { open: boolean }) {
           </p>
         )}
       </div>
+    </Sheet>
+  );
+}
+
+/* --------------------------------- Ahorrar --------------------------------- */
+
+/** Pase de la reserva de gastos a la de ahorro: no es gasto, solo mueve los saldos hasta el próximo corte. */
+export function AhorrarSheet({ open }: { open: boolean }) {
+  const data = useApp((s) => s.data);
+  const hoy = useApp((s) => s.hoy);
+  const dispatch = useApp((s) => s.dispatch);
+  const engine = useEngine();
+  const reservas = engine.reservas;
+  const reserva = necesidadReservaGastos(data, engine);
+  const sobra = reserva?.paraAhorrar ?? 0;
+  const [monto, setMonto] = useState<number | null>(sobra || null);
+  const m = monto ?? 0;
+  const falta = m - (reserva?.diferencia ?? 0);
+  const mes = engine.actual ? monthLabel(engine.actual.mes, { capital: false, year: false }) : "este mes";
+
+  function guardar() {
+    if (!monto) return;
+    dispatch({ type: "pase/save", pase: { id: uid(), fecha: hoy, monto, creadoEn: nowISO() } });
+    closeSheet();
+    toast(`${formatARS(monto)} al ahorro`, "good");
+  }
+
+  const fila = (label: string, desde: number, hasta: number) => (
+    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+      <span className="text-muted">{label}</span>
+      <span className="ml-auto tnum text-ink-2">
+        {formatARS(desde)} <span className="text-faint">→</span> <span className="font-medium text-ink">{formatARS(hasta)}</span>
+      </span>
+    </div>
+  );
+
+  return (
+    <Sheet
+      open={open}
+      onClose={closeSheet}
+      title="Ahorrar"
+      description="Pasá plata de la reserva de gastos a la de ahorro."
+      footer={
+        <Button variant="primary" size="lg" block disabled={!monto || !reservas} onClick={guardar} icon={<PiggyBank className="size-4" />}>
+          {monto ? `Ahorrar ${formatARS(monto)}` : "Ahorrar"}
+        </Button>
+      }
+    >
+      {!reservas ? (
+        <p className="py-6 text-center text-sm text-muted">Hacé tu primer corte para saber cuánto tenés en cada reserva.</p>
+      ) : (
+        <div className="grid gap-4">
+          <MoneyInput value={monto} onChange={setMonto} size="lg" placeholder="0" />
+          <p className="-mt-2 px-1 text-[13px] text-muted">
+            {sobra > 0 ? `Te sobran ${formatARS(sobra)} en gastos. Podés cambiar el monto (por ejemplo, redondearlo).` : "Hoy no te sobra plata en gastos."}
+          </p>
+          <Card className="grid gap-2 p-4 text-[14px]">
+            {fila("Reserva de gastos", reservas.gastos, reservas.gastos - m)}
+            {fila("Reserva de ahorro", reservas.ahorro, reservas.ahorro + m)}
+          </Card>
+          {m > 0 && falta >= 100 && (
+            <p className="flex gap-2 text-[13px] text-warn">
+              <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+              Es más de lo que te sobra: te van a faltar {formatARS(falta)} en gastos para tus límites y tarjetas de {mes}.
+            </p>
+          )}
+          <p className="rounded-xl bg-white/[0.04] p-3 text-[13px] text-muted">
+            Hacé el pase también en Mercado Pago, así coincide con tu próximo corte. No es un gasto: tu límite de la semana no cambia.
+          </p>
+        </div>
+      )}
     </Sheet>
   );
 }

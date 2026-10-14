@@ -12,10 +12,10 @@ import {
   tieneMontoDelMes,
 } from "./bills";
 import { mondaysInMonth, weekRangeLabel } from "./dates";
-import { emptyData } from "./defaults";
+import { emptyData, normalizeData } from "./defaults";
 import { computeEngine, consultar, necesidadReservaGastos, planMes } from "./engine";
 import { computeMetrics, projectGoal } from "./metrics";
-import type { Compra, Corte, Data, GastoEspecial, Ingreso, PagoTarjeta, Recurrente, Tarjeta } from "./types";
+import type { Compra, Corte, Data, GastoEspecial, Ingreso, PagoTarjeta, PaseAlAhorro, Recurrente, Tarjeta } from "./types";
 
 /* ------------------------------- helpers ------------------------------- */
 
@@ -74,6 +74,13 @@ const pago = (fecha: string, mes: string, pesos: number): PagoTarjeta => ({
   montoARS: $(pesos),
   montoUSD: 0,
   tipoCambio: 1500,
+  creadoEn: ts(fecha),
+});
+
+const pase = (fecha: string, pesos: number): PaseAlAhorro => ({
+  id: `a-${fecha}-${pesos}`,
+  fecha,
+  monto: $(pesos),
   creadoEn: ts(fecha),
 });
 
@@ -376,9 +383,83 @@ describe("consultas", () => {
     });
     const e = computeEngine(d, "2026-10-12");
     // base = (1,6M − 200K)/4 = 350K; quedan esta semana + 2 lunes (19, 26) + tarjeta pendiente 200K
-    const r = necesidadReservaGastos(e)!;
+    const r = necesidadReservaGastos(d, e)!;
     expect(r.necesario).toBe($(350_000 * 3 + 200_000));
     expect(r.diferencia).toBe($(1_000_000 - 1_250_000));
+  });
+});
+
+/* -------------------------- reservas y "Ahorrar" -------------------------- */
+
+describe("reservas y pases al ahorro", () => {
+  it("ahorrar no es gasto ni toca el límite: solo mueve los saldos hasta el próximo corte", () => {
+    const d = octubre([], (d) => d.cortes.push(corte("2026-10-05", 1_200_000, { ahorro: $(400_000) })));
+    const antes = computeEngine(d, "2026-10-07");
+    d.pases.push(pase("2026-10-07", 300_000));
+    const e = computeEngine(d, "2026-10-07");
+    expect(e.actual?.limite).toBe(antes.actual?.limite);
+    expect(e.reservas).toEqual({ gastos: $(900_000), ahorro: $(700_000), pasado: $(300_000), fecha: "2026-10-07" });
+
+    // El lunes el corte trae los saldos reales: gastó 100K (el pase no cuenta) y el corte vuelve a mandar.
+    d.cortes.push(corte("2026-10-12", 800_000, { ahorro: $(700_000) }));
+    const e2 = computeEngine(d, "2026-10-12");
+    expect(e2.intervalos.at(-1)?.gasto).toBe($(100_000));
+    expect(e2.reservas).toEqual({ gastos: $(800_000), ahorro: $(700_000), pasado: 0, fecha: "2026-10-12" });
+  });
+
+  it("lo que pasás al ahorro baja lo que sobra en gastos", () => {
+    const d = octubre([["2026-10-12", 1_500_000]]);
+    // base 400K: quedan esta semana + 2 lunes = 1,2M → sobran 300K
+    expect(necesidadReservaGastos(d, computeEngine(d, "2026-10-13"))!.diferencia).toBe($(300_000));
+    d.pases.push(pase("2026-10-13", 290_000));
+    const r = necesidadReservaGastos(d, computeEngine(d, "2026-10-13"))!;
+    expect(r.tenes).toBe($(1_210_000));
+    expect(r.diferencia).toBe($(10_000));
+    expect(r.paraAhorrar).toBe($(10_000));
+  });
+
+  it("mandar el sobrante al ahorro también mueve los saldos, y lo que sobra en gastos no cambia", () => {
+    const d = octubre([
+      ["2026-10-05", 1_600_000],
+      ["2026-10-12", 1_300_000], // gastó 300K de 400K: 100K de sobrante para esta semana
+    ]);
+    const antes = necesidadReservaGastos(d, computeEngine(d, "2026-10-13"))!;
+    d.sobrantes.push({ id: "s", fecha: "2026-10-13", monto: $(100_000), creadoEn: ts("2026-10-13") });
+    const e = computeEngine(d, "2026-10-13");
+    expect(e.reservas?.gastos).toBe($(1_200_000));
+    expect(e.reservas?.ahorro).toBe($(100_000));
+    expect(necesidadReservaGastos(d, e)!.diferencia).toBe(antes.diferencia);
+  });
+
+  it("pagar una tarjeta después del corte no cambia lo que sobra hasta el próximo corte", () => {
+    const d = octubre([["2026-10-12", 1_000_000]], (d) => {
+      d.tarjetas.push(visa);
+      d.compras.push(compra({ primerMes: "2026-10", montoCuota: $(200_000) }));
+    });
+    const antes = necesidadReservaGastos(d, computeEngine(d, "2026-10-14"))!;
+    d.pagos.push(pago("2026-10-14", "2026-10", 200_000));
+    const r = necesidadReservaGastos(d, computeEngine(d, "2026-10-14"))!;
+    expect(r.necesario).toBe(antes.necesario);
+    expect(r.diferencia).toBe($(1_000_000 - 1_250_000));
+  });
+
+  it("si en el corte ya está el sueldo del mes que viene, lo que sobra es el ahorro de ese mes", () => {
+    // Noviembre tiene 5 lunes (2 al 30) → base 1,6M / 5 = 320K. La semana del 30 es de noviembre.
+    const d = base();
+    d.ingresos.push(sueldo("2026-11-02", 2_000_000));
+    d.ingresos.push({ ...sueldo("2026-11-30", 2_000_000), mes: "2026-12" }); // diciembre, cobrado antes del corte
+    d.cortes.push(corte("2026-11-30", 2_400_000));
+    const r = necesidadReservaGastos(d, computeEngine(d, "2026-11-30"))!;
+    // Necesita lo que queda de la semana (320K) + todo diciembre (2M − 20% de ahorro = 1,6M).
+    expect(r.mesQueViene).toEqual({ mes: "2026-12", monto: $(1_600_000) });
+    expect(r.necesario).toBe($(320_000 + 1_600_000));
+    expect(r.diferencia).toBe($(480_000)); // 400K de ahorro de diciembre + 80K que quedó de noviembre
+  });
+
+  it("sin reserva de ahorro aparte no hay pases que aplicar", () => {
+    const d = octubre([["2026-10-05", 1_600_000]], (d) => (d.settings.usaReservaAhorro = false));
+    d.pases.push(pase("2026-10-06", 100_000));
+    expect(computeEngine(d, "2026-10-06").reservas).toEqual({ gastos: $(1_600_000), ahorro: 0, pasado: 0, fecha: "2026-10-05" });
   });
 });
 
@@ -586,6 +667,22 @@ describe("reducer", () => {
     d = reduce(d, { type: "corte/save", corte: { ...c, id: "otro", mp: $(5) } });
     expect(d.cortes).toHaveLength(1);
     expect(d.cortes[0].id).toBe("otro");
+  });
+
+  it("pases al ahorro: upsert idempotente y se pueden deshacer", () => {
+    let d = base();
+    const p = pase("2026-10-07", 50_000);
+    d = reduce(d, { type: "pase/save", pase: p });
+    d = reduce(d, { type: "pase/save", pase: p });
+    expect(d.pases).toHaveLength(1);
+    d = reduce(d, { type: "pase/delete", id: p.id });
+    expect(d.pases).toHaveLength(0);
+  });
+
+  it("datos de antes de los pases se completan, y se conservan campos que esta versión no conoce", () => {
+    const d = normalizeData({ ...emptyData(), pases: undefined, algoNuevo: [1] });
+    expect(d.pases).toEqual([]);
+    expect((d as unknown as { algoNuevo: number[] }).algoNuevo).toEqual([1]);
   });
 
   it("borrar una tarjeta en uso la archiva", () => {

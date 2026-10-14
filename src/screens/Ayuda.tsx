@@ -1,4 +1,4 @@
-import { CalendarCheck, CircleHelp, CreditCard, Gift, History, Repeat, Settings, Shield, Sparkles, Wallet } from "lucide-react";
+import { CalendarCheck, CircleHelp, CreditCard, Gift, History, PiggyBank, Repeat, Settings, Shield, Sparkles, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { navigate } from "@/lib/router";
@@ -53,6 +53,17 @@ export function Ayuda() {
           <p>
             Si te salteás un lunes no pasa nada: el próximo corte reparte el gasto entre las semanas. Y si a mitad de semana querés saber
             cuánto te queda, usá <b>¿Cuánto me queda?</b> (no guarda nada).
+          </p>
+        </Bloque>
+
+        <Bloque icon={<PiggyBank className="size-4" />} title="Ahorrar">
+          <p>
+            El día que cobrás, el Inicio te muestra cuánto <b>te sobra en gastos</b>: es el ahorro del mes. Tocá <b>Ahorrar</b>, cambiá el
+            monto si querés redondear y hacé el mismo pase en Mercado Pago.
+          </p>
+          <p>
+            Pasar plata de una reserva a otra <b>no es gasto</b>: el corte mide el total, que no cambia. Tus reservas se actualizan al toque y
+            el próximo corte confirma los saldos.
           </p>
         </Bloque>
 

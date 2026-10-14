@@ -1,5 +1,5 @@
 import { billEspecialARS, billPresupuestoARS, billsDelMes, billTotalARS } from "./bills";
-import { addDaysISO, daysBetween, mondayOf, mondaysInMonth, monthOf, monthRange } from "./dates";
+import { addDaysISO, addMonthsISO, daysBetween, mondayOf, mondaysInMonth, monthOf, monthRange } from "./dates";
 import type { Corte, Data, ISODate, ISOMonth, Ingreso } from "./types";
 
 /**
@@ -20,6 +20,10 @@ import type { Corte, Data, ISODate, ISOMonth, Ingreso } from "./types";
  *    - Si te pasás, se descuenta repartido entre las semanas que quedan del mes.
  *    - Al cambiar de mes, un déficit que quedó sin recuperar se absorbe del ahorro:
  *      el mes nuevo arranca limpio. Nunca más un número hundido por meses.
+ *
+ * 4. Reservas: los saldos de gastos y ahorro salen del último corte, más lo que pasaste al
+ *    ahorro después ("Ahorrar" y sobrantes). Pasar plata entre reservas no cambia el total,
+ *    así que no es gasto ni toca el límite; el próximo corte vuelve a ser la verdad.
  *
  * El motor es una función pura: se recalcula todo desde los datos en cada render.
  */
@@ -103,10 +107,23 @@ export interface MonthSummary {
   deficitAbsorbido: number;
 }
 
+/** Saldo de cada reserva: el del último corte más lo que pasaste al ahorro después. */
+export interface Reservas {
+  /** Mercado Pago para gastar + efectivo. */
+  gastos: number;
+  /** Reserva de ahorro en pesos (los dólares van aparte). */
+  ahorro: number;
+  /** Lo que pasaste al ahorro después del corte (ya aplicado en gastos y ahorro). */
+  pasado: number;
+  /** Fecha de lo último que los movió: el corte o un pase posterior. */
+  fecha: ISODate;
+}
+
 export interface EngineResult {
   hoy: ISODate;
   inicio: ISODate | null;
   ultimoCorte: Corte | null;
+  reservas: Reservas | null;
   meses: Record<ISOMonth, MonthPlan>;
   semanas: WeekResult[];
   actual: WeekResult | null;
@@ -129,6 +146,18 @@ export type Saldos = Pick<Corte, "mp" | "ahorro" | "efectivo" | "usd">;
 
 export const mesDeIngreso = (i: Ingreso): ISOMonth =>
   i.tipo !== "extra" && i.mes ? i.mes : monthOf(i.fecha);
+
+/**
+ * Pases al ahorro y sobrantes mandados al ahorro posteriores a un corte, en orden.
+ * Sin reserva de ahorro aparte no hay adónde moverlos: no cuentan.
+ */
+export function movidosAlAhorro(data: Data, desde: Corte): { fecha: ISODate; monto: number; creadoEn: string }[] {
+  if (!data.settings.usaReservaAhorro) return [];
+  const k = eventKey(desde);
+  return [...data.pases, ...data.sobrantes]
+    .filter((x) => eventKey(x) > k)
+    .sort((a, b) => eventKey(a).localeCompare(eventKey(b)));
+}
 
 /** Valor total en pesos de un corte (los dólares al tipo de cambio dado). */
 export const valorSaldos = (s: Saldos, tc: number): number => s.mp + s.ahorro + s.efectivo + s.usd * tc;
@@ -220,6 +249,7 @@ export function computeEngine(data: Data, hoy: ISODate): EngineResult {
       hoy,
       inicio: null,
       ultimoCorte: null,
+      reservas: null,
       meses,
       semanas: [],
       actual: null,
@@ -364,10 +394,20 @@ export function computeEngine(data: Data, hoy: ISODate): EngineResult {
     };
   });
 
+  const movimientos = movidosAlAhorro(data, ultimo);
+  const pasado = movimientos.reduce((s, x) => s + x.monto, 0);
+  const reservas: Reservas = {
+    gastos: ultimo.mp + ultimo.efectivo - pasado,
+    ahorro: ultimo.ahorro + pasado,
+    pasado,
+    fecha: movimientos.at(-1)?.fecha ?? ultimo.fecha,
+  };
+
   return {
     hoy,
     inicio,
     ultimoCorte: ultimo,
+    reservas,
     meses,
     semanas,
     actual,
@@ -394,15 +434,41 @@ export function consultar(data: Data, engine: EngineResult, saldos: Saldos) {
   return { ...r, gastoSemana: actual.gastadoParcial + r.gasto, restante, limite: actual.limite };
 }
 
-/** Plata que la reserva de gastos necesita para lo que queda del mes (a la fecha del último corte). */
-export function necesidadReservaGastos(engine: EngineResult) {
-  const ultimo = engine.ultimoCorte;
-  const actual = engine.actual;
-  if (!ultimo || !actual) return null;
+/**
+ * "Organizá tus reservas": lo que la reserva de gastos necesita para lo que queda del mes y lo que
+ * sobra (eso se puede ahorrar). Todo a la fecha del último corte, más lo que pasaste al ahorro
+ * después: pagar una tarjeta después del corte no cambia lo que sobra. Si en el corte ya está el
+ * sueldo del mes que viene, también se guarda lo de ese mes (lo que sobra es su ahorro).
+ */
+export function necesidadReservaGastos(data: Data, engine: EngineResult) {
+  const { ultimoCorte: ultimo, actual, reservas } = engine;
+  if (!ultimo || !actual || !reservas) return null;
+  const tc = data.settings.tipoCambio;
+  const k = eventKey(ultimo);
+  const pendientesAlCorte = (mes: ISOMonth) =>
+    billsDelMes(data, mes)
+      .filter((b) => !b.pagos.some((p) => eventKey(p) <= k))
+      .reduce((s, b) => s + billPresupuestoARS(b, tc), 0);
+
   const plan = engine.meses[actual.mes];
   const restoSemana = Math.max(0, actual.limite - actual.gastadoParcial);
   const semanasQueFaltan = plan.lunes.filter((l) => l > actual.lunes).length * plan.base;
-  const necesario = plan.tarjetasPendientes + restoSemana + semanasQueFaltan;
-  const tenes = ultimo.mp + ultimo.efectivo;
-  return { necesario, tenes, diferencia: tenes - necesario };
+
+  const sig = addMonthsISO(actual.mes, 1);
+  const cobroSig = data.ingresos.some((i) => i.tipo === "sueldo" && mesDeIngreso(i) === sig && eventKey(i) <= k);
+  const planSig = cobroSig ? (engine.meses[sig] ?? planMes(data, sig)) : null;
+  const mesQueViene = planSig ? pendientesAlCorte(sig) + planSig.base * planSig.lunes.length : 0;
+
+  const necesario = pendientesAlCorte(actual.mes) + restoSemana + semanasQueFaltan + mesQueViene;
+  const tenes = reservas.gastos;
+  const diferencia = tenes - necesario;
+  return {
+    necesario,
+    tenes,
+    diferencia,
+    /** Lo que sobra, en pesos enteros: lo que se ofrece pasar al ahorro. */
+    paraAhorrar: Math.max(0, Math.floor(diferencia / 100) * 100),
+    /** Lo reservado para el mes que viene, si su sueldo ya está cobrado. */
+    mesQueViene: planSig ? { mes: sig, monto: mesQueViene } : null,
+  };
 }

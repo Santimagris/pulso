@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { reduce, type Action } from "@/domain/actions";
 import { billEstimadoARS, billsDelMes } from "@/domain/bills";
 import { addMonthsISO, dayLabel, firstBusinessDay, monthLabel, monthOf, weekRangeLabel } from "@/domain/dates";
-import { computeEngine, sortedCortes } from "@/domain/engine";
+import { computeEngine, movidosAlAhorro, sortedCortes } from "@/domain/engine";
 import { formatARS } from "@/domain/money";
 import type { Corte, Data, GastoEspecial, Ingreso, PagoTarjeta } from "@/domain/types";
 import { cn, uid } from "@/lib/cn";
@@ -59,7 +59,11 @@ export function CorteSheet({ open, corteId }: { open: boolean; corteId?: string 
 
   const [fecha, setFecha] = useState(editando?.fecha ?? hoy);
   const [mp, setMp] = useState<number | null>(editando?.mp ?? null);
-  const [ahorro, setAhorro] = useState<number | null>(editando?.ahorro ?? anterior?.ahorro ?? (settings.usaReservaAhorro ? null : 0));
+  // Al crear, el ahorro viene con lo que pasaste al ahorro después del último corte.
+  const pasado = !editando && anterior ? movidosAlAhorro(data, anterior).reduce((s, x) => s + x.monto, 0) : 0;
+  const [ahorro, setAhorro] = useState<number | null>(
+    editando?.ahorro ?? (anterior ? anterior.ahorro + pasado : settings.usaReservaAhorro ? null : 0),
+  );
   const [efectivo, setEfectivo] = useState<number | null>(editando?.efectivo ?? anterior?.efectivo ?? 0);
   const [usd, setUsd] = useState<number | null>(editando?.usd ?? anterior?.usd ?? (settings.usaDolares ? null : 0));
   const [nota, setNota] = useState(editando?.nota ?? "");
@@ -190,7 +194,17 @@ export function CorteSheet({ open, corteId }: { open: boolean; corteId?: string 
             {anterior && <span className="text-faint"> · la vez pasada {formatARS(anterior.mp)}</span>}
           </p>
           {settings.usaReservaAhorro && (
-            <Field label="Reserva de ahorro" htmlFor="corte-ahorro" hint={anterior ? "Precargado con el corte anterior: cambialo si moviste plata." : "Si todavía no la creaste, poné 0."}>
+            <Field
+              label="Reserva de ahorro"
+              htmlFor="corte-ahorro"
+              hint={
+                !anterior
+                  ? "Si todavía no la creaste, poné 0."
+                  : pasado
+                    ? `Precargado con el corte anterior + ${formatARS(pasado)} que pasaste al ahorro. Fijate que coincida con Mercado Pago.`
+                    : "Precargado con el corte anterior: cambialo si moviste plata."
+              }
+            >
               <MoneyInput id="corte-ahorro" value={ahorro} onChange={setAhorro} />
             </Field>
           )}

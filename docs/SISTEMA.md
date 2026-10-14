@@ -88,6 +88,17 @@ llevan `creadoEn` un segundo antes que el corte → quedan **antes** del corte.
   nuevo arranca en cero. Nunca un número hundido por meses.
 - Semanas sin corte: quedan "pendientes" y su presupuesto sigue disponible hasta el próximo corte.
 
+**Reservas y "Ahorrar"** (`engine.reservas`, `necesidadReservaGastos`):
+
+- Saldo de cada reserva = el del último corte + lo que pasaste al ahorro después
+  (`PaseAlAhorro` del botón "Ahorrar" y `SobranteAlAhorro`), solo si hay reserva de ahorro aparte.
+- Un pase **no es gasto ni toca el límite**: el gasto se mide con el total y el total no cambia.
+  El próximo corte precarga el ahorro con los pases y vuelve a ser la verdad.
+- "Te sobran" = gastos − (tarjetas del mes pendientes **al corte** + lo que queda de límite esta
+  semana + base × lunes que faltan [+ todo el mes que viene si su sueldo ya está en el corte]).
+  Todo a la fecha del corte: pagar una tarjeta después no cambia lo que sobra. El Inicio ofrece
+  "Ahorrar" desde $10.000, con el corte de esta semana hecho.
+
 **El motor es una función pura** `computeEngine(data, hoy)`: todo se recalcula desde los
 datos en cada render. No hay campos derivados persistidos.
 
@@ -99,6 +110,8 @@ datos en cada render. No hay campos derivados persistidos.
   Si GitHub responde 409/422 (otro dispositivo guardó antes): re-lee y re-aplica (≤3 veces).
 - Sin red: estado `offline`, reintento cada 15 s y al volver la conexión/visibilidad.
 - Reducer **idempotente** (upsert por id): re-aplicar acciones es seguro.
+- `normalizeData` completa lo que falta y **conserva campos que no conoce**: una versión vieja
+  abierta en otro dispositivo no borra lo que agregó una más nueva.
 
 ## 6. Reglas para no romper
 

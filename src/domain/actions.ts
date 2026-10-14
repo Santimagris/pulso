@@ -7,6 +7,7 @@ import type {
   GastoEspecial,
   Ingreso,
   PagoTarjeta,
+  PaseAlAhorro,
   Recurrente,
   Settings,
   SobranteAlAhorro,
@@ -42,6 +43,8 @@ export type Action =
   | { type: "especial/delete"; id: string }
   | { type: "sobrante/save"; sobrante: SobranteAlAhorro }
   | { type: "sobrante/delete"; id: string }
+  | { type: "pase/save"; pase: PaseAlAhorro }
+  | { type: "pase/delete"; id: string }
   | { type: "data/replace"; data: Data };
 
 type WithId = { id: string };
@@ -68,6 +71,7 @@ function sortData(d: Data): Data {
     pagos: [...d.pagos].sort((a, b) => a.mes.localeCompare(b.mes) || a.creadoEn.localeCompare(b.creadoEn)),
     especiales: [...d.especiales].sort(byFecha),
     sobrantes: [...d.sobrantes].sort(byFecha),
+    pases: [...d.pases].sort(byFecha),
     compras: [...d.compras].sort(
       (a, b) => a.primerMes.localeCompare(b.primerMes) || a.creadoEn.localeCompare(b.creadoEn),
     ),
@@ -140,6 +144,11 @@ export function reduce(data: Data, action: Action): Data {
     case "sobrante/delete":
       return { ...data, sobrantes: remove(data.sobrantes, action.id) };
 
+    case "pase/save":
+      return sortData({ ...data, pases: upsert(data.pases, action.pase) });
+    case "pase/delete":
+      return { ...data, pases: remove(data.pases, action.id) };
+
     case "data/replace":
       return normalizeData(action.data);
   }
@@ -195,6 +204,10 @@ export function describe(action: Action): string {
       return `Sobrante al ahorro: ${formatARS(action.sobrante.monto)}`;
     case "sobrante/delete":
       return "Sobrante al ahorro eliminado";
+    case "pase/save":
+      return `Ahorro: ${formatARS(action.pase.monto)} de gastos a la reserva de ahorro`;
+    case "pase/delete":
+      return "Pase al ahorro eliminado";
     case "data/replace":
       return "Datos importados";
   }

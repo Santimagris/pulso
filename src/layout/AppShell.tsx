@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { navigate, useRoute, type Route } from "@/lib/router";
 import { openSheet, useUI } from "@/lib/ui-store";
+import { useApp } from "@/sync/store";
 import { Logo } from "@/ui/Logo";
 import { Button } from "@/ui/primitives";
 
@@ -19,6 +20,7 @@ const NAV: { route: Route; label: string; icon: typeof House }[] = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const route = useRoute();
+  const puedeAhorrar = useApp((s) => s.data.settings.usaReservaAhorro && s.data.cortes.length > 0);
   return (
     <div className="mx-auto flex min-h-dvh max-w-[1280px]">
       {/* Sidebar (compu) */}
@@ -34,6 +36,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Button variant="secondary" icon={<CreditCard className="size-4" />} onClick={() => openSheet({ kind: "compra" })}>
             Cargar compra
           </Button>
+          {puedeAhorrar && (
+            <Button variant="secondary" icon={<PiggyBank className="size-4" />} onClick={() => openSheet({ kind: "ahorrar" })}>
+              Ahorrar
+            </Button>
+          )}
         </div>
         <nav className="mt-6 grid gap-0.5" aria-label="Secciones">
           {NAV.map(({ route: r, label, icon: Icon }) => (

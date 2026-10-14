@@ -154,6 +154,18 @@ export interface SobranteAlAhorro {
   creadoEn: string;
 }
 
+/**
+ * Plata que pasaste de la reserva de gastos a la de ahorro ("Ahorrar"). No es gasto ni toca el
+ * límite (el corte mide el total, que no cambia): solo mueve los saldos que se muestran hasta el
+ * próximo corte, que vuelve a ser la verdad.
+ */
+export interface PaseAlAhorro {
+  id: string;
+  fecha: ISODate;
+  monto: number;
+  creadoEn: string;
+}
+
 export interface Data {
   version: 1;
   creadoEn: string;
@@ -166,4 +178,5 @@ export interface Data {
   pagos: PagoTarjeta[];
   especiales: GastoEspecial[];
   sobrantes: SobranteAlAhorro[];
+  pases: PaseAlAhorro[];
 }

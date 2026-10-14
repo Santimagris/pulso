@@ -21,7 +21,7 @@ export function Ahorro() {
   const s = data.settings;
   const plan = engine.meses[mes];
   const goal = useMemo(() => projectGoal(data, engine, m, mes), [data, engine, m, mes]);
-  const reserva = s.usaReservaAhorro ? necesidadReservaGastos(engine) : null;
+  const reserva = s.usaReservaAhorro ? necesidadReservaGastos(data, engine) : null;
   const actual = engine.actual;
 
   const meses = mesesComparables(engine);
@@ -48,7 +48,7 @@ export function Ahorro() {
               <HeroMoney value={(m.ahorroAcumulado ?? m.totalTenes ?? 0)} className="mt-2 text-[46px] leading-none" />
               <div className="mt-2 text-[13px] text-muted">
                 {m.ahorroAcumulado != null
-                  ? `En la reserva de ahorro${m.usdTenes ? ` (incluye ${formatUSD(m.usdTenes)})` : ""} · según tu último corte`
+                  ? `En la reserva de ahorro${m.usdTenes ? ` (incluye ${formatUSD(m.usdTenes)})` : ""} · según tu último corte${engine.reservas?.pasado ? " y lo que pasaste después" : ""}`
                   : "Ahorro y plata para gastar juntos. Separalos para ver tu ahorro real."}
               </div>
               {m.ahorroAcumulado == null && (
@@ -121,15 +121,32 @@ export function Ahorro() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted">Para lo que queda del mes necesitás</span>
-                  <span className="tnum">{formatARS(reserva.necesario)}</span>
+                  <span className="tnum">{formatARS(reserva.necesario - (reserva.mesQueViene?.monto ?? 0))}</span>
                 </div>
+                {reserva.mesQueViene && (
+                  <div className="flex justify-between">
+                    <span className="text-muted">Para {monthLabel(reserva.mesQueViene.mes, { capital: false, year: false })} (ya cobraste el sueldo)</span>
+                    <span className="tnum">{formatARS(reserva.mesQueViene.monto)}</span>
+                  </div>
+                )}
               </div>
-              <p className={cn("mt-3 text-[13px]", reserva.diferencia >= 0 ? "text-good" : "text-warn")}>
-                {reserva.diferencia >= 0
-                  ? `Te sobran ${formatARS(reserva.diferencia)}: podés pasarlos a la reserva de ahorro.`
-                  : `Te faltan ${formatARS(-reserva.diferencia)} en gastos: pasalos desde ahorro (o ajustá esta semana).`}
+              {reserva.diferencia >= 0 ? (
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <p className="text-[13px] text-good">Te sobran {formatARS(reserva.paraAhorrar)}: podés pasarlos a la reserva de ahorro.</p>
+                  {reserva.paraAhorrar > 0 && (
+                    <Button size="sm" variant="secondary" icon={<PiggyBank className="size-4" />} onClick={() => openSheet({ kind: "ahorrar" })}>
+                      Ahorrar
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <p className="mt-3 text-[13px] text-warn">
+                  Te faltan {formatARS(-reserva.diferencia)} en gastos: pasalos desde ahorro (o ajustá esta semana).
+                </p>
+              )}
+              <p className="mt-1 text-[12px] text-faint">
+                Calculado con tu último corte (y lo que pasaste al ahorro después): tarjetas pendientes + lo que te queda de límite este mes.
               </p>
-              <p className="mt-1 text-[12px] text-faint">Calculado con tu último corte: tarjetas pendientes + lo que te queda de límite este mes.</p>
             </Card>
           )}
         </div>

@@ -13,7 +13,7 @@ export interface Metrics {
   ultimoMesCompleto: MonthSummary | null;
   /** Todo lo que tenés según el último corte (dólares al tipo de cambio actual). */
   totalTenes: number | null;
-  /** Reserva de ahorro + dólares (si usás reserva aparte). */
+  /** Reserva de ahorro + dólares (si usás reserva aparte), con lo que pasaste al ahorro después del corte. */
   ahorroAcumulado: number | null;
   usdTenes: number;
 }
@@ -44,7 +44,7 @@ export function computeMetrics(data: Data, e: EngineResult): Metrics {
     vsMesAnterior,
     ultimoMesCompleto: completos.at(-1) ?? null,
     totalTenes: u ? valorSaldos(u, tc) : null,
-    ahorroAcumulado: u && data.settings.usaReservaAhorro ? u.ahorro + u.usd * tc : null,
+    ahorroAcumulado: u && e.reservas && data.settings.usaReservaAhorro ? e.reservas.ahorro + u.usd * tc : null,
     usdTenes: u?.usd ?? 0,
   };
 }

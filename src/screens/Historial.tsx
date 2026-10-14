@@ -194,6 +194,19 @@ function Movimientos() {
           if (confirm("¿Deshacer y devolver ese sobrante a la semana?")) dispatch({ type: "sobrante/delete", id: x.id });
         },
       });
+    for (const x of data.pases)
+      out.push({
+        key: `a-${x.id}`,
+        fecha: x.fecha,
+        icon: <PiggyBank className="size-4" />,
+        title: "Pase al ahorro",
+        sub: "de gastos a ahorro · tocá para deshacer",
+        amount: formatARS(x.monto),
+        tone: "text-good",
+        onClick: () => {
+          if (confirm("¿Deshacer este pase al ahorro?")) dispatch({ type: "pase/delete", id: x.id });
+        },
+      });
     return out.sort((a, b) => b.fecha.localeCompare(a.fecha) || a.key.localeCompare(b.key));
   }, [data, tc, dispatch]); // eslint-disable-line react-hooks/exhaustive-deps
 

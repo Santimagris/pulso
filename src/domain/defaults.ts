@@ -25,6 +25,7 @@ export function emptyData(now = new Date()): Data {
     pagos: [],
     especiales: [],
     sobrantes: [],
+    pases: [],
   };
 }
 
@@ -35,6 +36,8 @@ export function normalizeData(raw: unknown): Data {
   const o = raw as Partial<Data>;
   const arr = <T,>(v: T[] | undefined): T[] => (Array.isArray(v) ? v : []);
   return {
+    // Campos que agregue una versión más nueva de la app se conservan al guardar.
+    ...o,
     version: 1,
     creadoEn: typeof o.creadoEn === "string" ? o.creadoEn : base.creadoEn,
     settings: { ...DEFAULT_SETTINGS, ...(o.settings ?? {}) },
@@ -46,6 +49,7 @@ export function normalizeData(raw: unknown): Data {
     pagos: arr(o.pagos),
     especiales: arr(o.especiales),
     sobrantes: arr(o.sobrantes),
+    pases: arr(o.pases),
   };
 }
 

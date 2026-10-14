@@ -16,7 +16,8 @@ export type SheetSpec =
   | { kind: "ingreso"; ingresoId?: string; tipo?: "sueldo" | "aguinaldo" | "extra" }
   | { kind: "plan" }
   | { kind: "meta" }
-  | { kind: "sobrante" };
+  | { kind: "sobrante" }
+  | { kind: "ahorrar" };
 
 export interface Toast {
   id: number;
