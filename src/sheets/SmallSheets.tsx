@@ -53,7 +53,17 @@ export function ConsultaSheet({ open }: { open: boolean }) {
   const engine = useEngine();
   const ultimo = sortedCortes(data).at(-1);
   const { settings } = data;
-  const [mp, setMp] = useState<number | null>(null);
+  // Con reserva de ahorro aparte y el corte de esta semana: la cuenta (lo de la semana) se anota y
+  // la reserva de gastos viene calculada: Mercado Pago del corte menos lo que quedaba para la semana.
+  const w = engine.actual;
+  const res = settings.usaReservaAhorro && ultimo && w && ultimo.fecha >= w.lunes ? engine.reservas : null;
+  const enCuentaAlCorte = w ? Math.max(0, w.limite - w.gastadoParcial) : 0;
+  const [cuenta, setCuenta] = useState<number | null>(null);
+  const [resGastos, setResGastos] = useState<number | null>(
+    res && ultimo ? Math.max(0, Math.round((res.gastos - ultimo.efectivo - enCuentaAlCorte) / 100) * 100) : 0,
+  );
+  const [mpTotal, setMpTotal] = useState<number | null>(null);
+  const mp = res ? (cuenta == null ? null : cuenta + (resGastos ?? 0)) : mpTotal;
   const [ahorro, setAhorro] = useState<number | null>(engine.reservas?.ahorro ?? ultimo?.ahorro ?? 0);
   const [efectivo, setEfectivo] = useState<number | null>(ultimo?.efectivo ?? 0);
   const [usd, setUsd] = useState<number | null>(ultimo?.usd ?? 0);
@@ -79,7 +89,18 @@ export function ConsultaSheet({ open }: { open: boolean }) {
         <p className="py-6 text-center text-sm text-muted">Todavía no hay cortes.</p>
       ) : (
         <div className="grid gap-4">
-          <MoneyInput value={mp} onChange={setMp} size="lg" placeholder="Saldo de Mercado Pago ahora" />
+          {res ? (
+            <>
+              <Field label="Saldo de tu cuenta ahora">
+                <MoneyInput value={cuenta} onChange={setCuenta} size="lg" placeholder="Lo que ves en Mercado Pago" />
+              </Field>
+              <Field label="Reserva de gastos" hint="Según tu corte. Si no coincide con Mercado Pago, corregila.">
+                <MoneyInput value={resGastos} onChange={setResGastos} />
+              </Field>
+            </>
+          ) : (
+            <MoneyInput value={mpTotal} onChange={setMpTotal} size="lg" placeholder="Saldo de Mercado Pago ahora" />
+          )}
           {settings.usaReservaAhorro && (
             <Field label="Reserva de ahorro" hint="Si no la tocaste, dejala como está.">
               <MoneyInput value={ahorro} onChange={setAhorro} />

@@ -259,6 +259,7 @@ function Hero({ engine }: { engine: EngineResult }) {
 /** Saldo de cada reserva: el del último corte más lo que pasaste al ahorro después (los mismos números que usa Ahorro). */
 function Reservas({ engine }: { engine: EngineResult }) {
   const m = useMetrics();
+  const usaDolares = useApp((s) => s.data.settings.usaDolares);
   const u = engine.ultimoCorte;
   const r = engine.reservas;
   if (!u || !r || m.ahorroAcumulado == null) return null;
@@ -276,6 +277,8 @@ function Reservas({ engine }: { engine: EngineResult }) {
       icon: <PiggyBank className="size-4" />,
       value: m.ahorroAcumulado,
       detalle: m.usdTenes ? `incluye ${formatUSD(m.usdTenes)}` : null,
+      // Con dólares, la tarjeta se parte en pesos y dólares (sin sumarlos).
+      partes: usaDolares ? { pesos: r.ahorro, usd: m.usdTenes } : null,
     },
   ];
   return (
@@ -287,11 +290,32 @@ function Reservas({ engine }: { engine: EngineResult }) {
             <span className="hidden shrink-0 text-faint sm:block lg:hidden xl:block">{it.icon}</span>
             {it.label}
           </div>
-          <HeroMoney value={it.value} className="mt-2.5 text-[22px] leading-none" />
-          <div className="mt-2 text-[12px] leading-snug text-faint">
-            {it.detalle && <div>{it.detalle}</div>}
-            {cuando}
-          </div>
+          {it.partes ? (
+            <div className="@container">
+              <div className="mt-2.5 grid gap-2 @[15rem]:grid-cols-2 @[15rem]:gap-0 @[15rem]:divide-x @[15rem]:divide-line">
+                <div className="min-w-0 @[15rem]:pr-3">
+                  <div className="text-[11px] font-medium text-faint">Pesos</div>
+                  <HeroMoney value={it.partes.pesos} className="mt-1 text-[18px] leading-none" />
+                </div>
+                <div className="min-w-0 @[15rem]:pl-3">
+                  <div className="text-[11px] font-medium text-faint">Dólares</div>
+                  <span className="mt-1 inline-flex items-baseline text-[18px] leading-none font-semibold tracking-[-0.035em]">
+                    <span className="mr-[0.15em] text-[0.55em] font-medium text-muted">US$</span>
+                    {formatUSD(it.partes.usd).replace("US$", "")}
+                  </span>
+                </div>
+              </div>
+              <div className="mt-2 text-[12px] leading-snug text-faint">{cuando}</div>
+            </div>
+          ) : (
+            <>
+              <HeroMoney value={it.value} className="mt-2.5 text-[22px] leading-none" />
+              <div className="mt-2 text-[12px] leading-snug text-faint">
+                {it.detalle && <div>{it.detalle}</div>}
+                {cuando}
+              </div>
+            </>
+          )}
         </Card>
       ))}
     </div>
