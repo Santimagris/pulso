@@ -43,6 +43,6 @@ export function SheetHost() {
     case "sobrante":
       return <SobranteSheet key={key} open={open} />;
     case "ahorrar":
-      return <AhorrarSheet key={key} open={open} />;
+      return <AhorrarSheet key={key} open={open} sacar={spec.sacar} />;
   }
 }

@@ -200,9 +200,11 @@ export function CorteSheet({ open, corteId }: { open: boolean; corteId?: string 
               hint={
                 !anterior
                   ? "Si todavía no la creaste, poné 0."
-                  : pasado
+                  : pasado > 0
                     ? `Precargado con el corte anterior + ${formatARS(pasado)} que pasaste al ahorro. Fijate que coincida con Mercado Pago.`
-                    : "Precargado con el corte anterior: cambialo si moviste plata."
+                    : pasado < 0
+                      ? `Precargado con el corte anterior − ${formatARS(-pasado)} que sacaste del ahorro. Fijate que coincida con Mercado Pago.`
+                      : "Precargado con el corte anterior: cambialo si moviste plata."
               }
             >
               <MoneyInput id="corte-ahorro" value={ahorro} onChange={setAhorro} />

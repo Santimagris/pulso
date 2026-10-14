@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { reduce } from "./actions";
+import { describe as describirAccion, reduce } from "./actions";
 import {
   bill,
   billPresupuestoARS,
@@ -398,13 +398,13 @@ describe("reservas y pases al ahorro", () => {
     d.pases.push(pase("2026-10-07", 300_000));
     const e = computeEngine(d, "2026-10-07");
     expect(e.actual?.limite).toBe(antes.actual?.limite);
-    expect(e.reservas).toEqual({ gastos: $(900_000), ahorro: $(700_000), pasado: $(300_000), fecha: "2026-10-07" });
+    expect(e.reservas).toEqual({ gastos: $(900_000), ahorro: $(700_000), pasado: $(300_000), especiales: 0, fecha: "2026-10-07" });
 
     // El lunes el corte trae los saldos reales: gastó 100K (el pase no cuenta) y el corte vuelve a mandar.
     d.cortes.push(corte("2026-10-12", 800_000, { ahorro: $(700_000) }));
     const e2 = computeEngine(d, "2026-10-12");
     expect(e2.intervalos.at(-1)?.gasto).toBe($(100_000));
-    expect(e2.reservas).toEqual({ gastos: $(800_000), ahorro: $(700_000), pasado: 0, fecha: "2026-10-12" });
+    expect(e2.reservas).toEqual({ gastos: $(800_000), ahorro: $(700_000), pasado: 0, especiales: 0, fecha: "2026-10-12" });
   });
 
   it("lo que pasás al ahorro baja lo que sobra en gastos", () => {
@@ -416,6 +416,38 @@ describe("reservas y pases al ahorro", () => {
     expect(r.tenes).toBe($(1_210_000));
     expect(r.diferencia).toBe($(10_000));
     expect(r.paraAhorrar).toBe($(10_000));
+  });
+
+  it("sacar del ahorro sube gastos y baja ahorro, sin ser gasto ni tocar el límite: tapa lo que falta", () => {
+    const d = octubre([], (d) => {
+      d.tarjetas.push(visa);
+      d.compras.push(compra({ primerMes: "2026-10", montoCuota: $(200_000) }));
+      d.cortes.push(corte("2026-10-12", 1_000_000, { ahorro: $(500_000) }));
+    });
+    // base 350K: necesita 3 semanas + la tarjeta = 1,25M → faltan 250K
+    const antes = computeEngine(d, "2026-10-13");
+    expect(necesidadReservaGastos(d, antes)!.diferencia).toBe($(-250_000));
+    expect(necesidadReservaGastos(d, antes)!.paraSacar).toBe($(250_000));
+    d.pases.push(pase("2026-10-13", -250_000));
+    const e = computeEngine(d, "2026-10-13");
+    expect(e.reservas).toEqual({ gastos: $(1_250_000), ahorro: $(250_000), pasado: $(-250_000), especiales: 0, fecha: "2026-10-13" });
+    expect(e.actual?.limite).toBe(antes.actual?.limite);
+    expect(necesidadReservaGastos(d, e)!.diferencia).toBe(0);
+
+    // El lunes gastó justo el límite (350K): el pase no cuenta como gasto.
+    d.cortes.push(corte("2026-10-19", 900_000, { ahorro: $(250_000) }));
+    expect(computeEngine(d, "2026-10-19").intervalos.at(-1)?.gasto).toBe($(350_000));
+  });
+
+  it("un gasto especial cargado después del corte sale de la reserva de gastos y de lo que sobra", () => {
+    const d = octubre([["2026-10-12", 1_500_000]], (d) => d.especiales.push(especial("2026-10-10", 50_000)));
+    const antes = computeEngine(d, "2026-10-14");
+    expect(necesidadReservaGastos(d, antes)!.diferencia).toBe($(300_000)); // el especial de antes del corte ya está en el saldo
+    d.especiales.push(especial("2026-10-14", 300_000));
+    const e = computeEngine(d, "2026-10-14");
+    expect(e.reservas).toEqual({ gastos: $(1_200_000), ahorro: 0, pasado: 0, especiales: $(300_000), fecha: "2026-10-14" });
+    expect(e.actual?.limite).toBe(antes.actual?.limite);
+    expect(necesidadReservaGastos(d, e)!.diferencia).toBe(0);
   });
 
   it("mandar el sobrante al ahorro también mueve los saldos, y lo que sobra en gastos no cambia", () => {
@@ -459,7 +491,7 @@ describe("reservas y pases al ahorro", () => {
   it("sin reserva de ahorro aparte no hay pases que aplicar", () => {
     const d = octubre([["2026-10-05", 1_600_000]], (d) => (d.settings.usaReservaAhorro = false));
     d.pases.push(pase("2026-10-06", 100_000));
-    expect(computeEngine(d, "2026-10-06").reservas).toEqual({ gastos: $(1_600_000), ahorro: 0, pasado: 0, fecha: "2026-10-05" });
+    expect(computeEngine(d, "2026-10-06").reservas).toEqual({ gastos: $(1_600_000), ahorro: 0, pasado: 0, especiales: 0, fecha: "2026-10-05" });
   });
 });
 
@@ -677,6 +709,8 @@ describe("reducer", () => {
     expect(d.pases).toHaveLength(1);
     d = reduce(d, { type: "pase/delete", id: p.id });
     expect(d.pases).toHaveLength(0);
+    expect(describirAccion({ type: "pase/save", pase: p })).toBe("Ahorro: $50.000 de gastos a la reserva de ahorro");
+    expect(describirAccion({ type: "pase/save", pase: { ...p, monto: -p.monto } })).toBe("Sacar del ahorro: $50.000 a la reserva de gastos");
   });
 
   it("datos de antes de los pases se completan, y se conservan campos que esta versión no conoce", () => {

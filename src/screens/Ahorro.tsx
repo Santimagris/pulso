@@ -130,22 +130,25 @@ export function Ahorro() {
                   </div>
                 )}
               </div>
-              {reserva.diferencia >= 0 ? (
+              {reserva.paraAhorrar > 0 ? (
                 <div className="mt-3 flex items-center justify-between gap-3">
                   <p className="text-[13px] text-good">Te sobran {formatARS(reserva.paraAhorrar)}: podés pasarlos a la reserva de ahorro.</p>
-                  {reserva.paraAhorrar > 0 && (
-                    <Button size="sm" variant="secondary" icon={<PiggyBank className="size-4" />} onClick={() => openSheet({ kind: "ahorrar" })}>
-                      Ahorrar
-                    </Button>
-                  )}
+                  <Button size="sm" variant="secondary" icon={<PiggyBank className="size-4" />} onClick={() => openSheet({ kind: "ahorrar" })}>
+                    Ahorrar
+                  </Button>
+                </div>
+              ) : reserva.paraSacar > 0 ? (
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <p className="text-[13px] text-warn">Te faltan {formatARS(reserva.paraSacar)} en gastos: pasalos desde ahorro (o ajustá esta semana).</p>
+                  <Button size="sm" variant="secondary" icon={<PiggyBank className="size-4" />} onClick={() => openSheet({ kind: "ahorrar", sacar: true })}>
+                    Sacar del ahorro
+                  </Button>
                 </div>
               ) : (
-                <p className="mt-3 text-[13px] text-warn">
-                  Te faltan {formatARS(-reserva.diferencia)} en gastos: pasalos desde ahorro (o ajustá esta semana).
-                </p>
+                <p className="mt-3 text-[13px] text-good">Está justo: no te sobra ni te falta.</p>
               )}
               <p className="mt-1 text-[12px] text-faint">
-                Calculado con tu último corte (y lo que pasaste al ahorro después): tarjetas pendientes + lo que te queda de límite este mes.
+                Calculado con tu último corte (y lo que moviste entre reservas después): tarjetas pendientes + lo que te queda de límite este mes.
               </p>
             </Card>
           )}

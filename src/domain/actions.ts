@@ -205,9 +205,11 @@ export function describe(action: Action): string {
     case "sobrante/delete":
       return "Sobrante al ahorro eliminado";
     case "pase/save":
-      return `Ahorro: ${formatARS(action.pase.monto)} de gastos a la reserva de ahorro`;
+      return action.pase.monto >= 0
+        ? `Ahorro: ${formatARS(action.pase.monto)} de gastos a la reserva de ahorro`
+        : `Sacar del ahorro: ${formatARS(-action.pase.monto)} a la reserva de gastos`;
     case "pase/delete":
-      return "Pase al ahorro eliminado";
+      return "Pase entre reservas eliminado";
     case "data/replace":
       return "Datos importados";
   }

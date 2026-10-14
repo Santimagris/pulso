@@ -21,9 +21,10 @@ import type { Corte, Data, ISODate, ISOMonth, Ingreso } from "./types";
  *    - Al cambiar de mes, un déficit que quedó sin recuperar se absorbe del ahorro:
  *      el mes nuevo arranca limpio. Nunca más un número hundido por meses.
  *
- * 4. Reservas: los saldos de gastos y ahorro salen del último corte, más lo que pasaste al
- *    ahorro después ("Ahorrar" y sobrantes). Pasar plata entre reservas no cambia el total,
- *    así que no es gasto ni toca el límite; el próximo corte vuelve a ser la verdad.
+ * 4. Reservas: los saldos de gastos y ahorro salen del último corte, más lo que moviste entre
+ *    reservas después ("Ahorrar", "Sacar del ahorro", sobrantes) y los gastos especiales que
+ *    pagaste desde gastos. Pasar plata entre reservas no cambia el total, así que no es gasto ni
+ *    toca el límite; el próximo corte vuelve a ser la verdad.
  *
  * El motor es una función pura: se recalcula todo desde los datos en cada render.
  */
@@ -107,15 +108,17 @@ export interface MonthSummary {
   deficitAbsorbido: number;
 }
 
-/** Saldo de cada reserva: el del último corte más lo que pasaste al ahorro después. */
+/** Saldo de cada reserva: el del último corte más lo que se movió después. */
 export interface Reservas {
   /** Mercado Pago para gastar + efectivo. */
   gastos: number;
   /** Reserva de ahorro en pesos (los dólares van aparte). */
   ahorro: number;
-  /** Lo que pasaste al ahorro después del corte (ya aplicado en gastos y ahorro). */
+  /** Neto que pasaste al ahorro después del corte (negativo si sacaste); ya aplicado arriba. */
   pasado: number;
-  /** Fecha de lo último que los movió: el corte o un pase posterior. */
+  /** Gastos especiales cargados después del corte: salen de la reserva de gastos; ya aplicados. */
+  especiales: number;
+  /** Fecha de lo último que los movió: el corte o algo posterior. */
   fecha: ISODate;
 }
 
@@ -148,8 +151,8 @@ export const mesDeIngreso = (i: Ingreso): ISOMonth =>
   i.tipo !== "extra" && i.mes ? i.mes : monthOf(i.fecha);
 
 /**
- * Pases al ahorro y sobrantes mandados al ahorro posteriores a un corte, en orden.
- * Sin reserva de ahorro aparte no hay adónde moverlos: no cuentan.
+ * Pases entre reservas (negativos si sacaste del ahorro) y sobrantes mandados al ahorro
+ * posteriores a un corte, en orden. Sin reserva de ahorro aparte no hay adónde moverlos: no cuentan.
  */
 export function movidosAlAhorro(data: Data, desde: Corte): { fecha: ISODate; monto: number; creadoEn: string }[] {
   if (!data.settings.usaReservaAhorro) return [];
@@ -396,11 +399,15 @@ export function computeEngine(data: Data, hoy: ISODate): EngineResult {
 
   const movimientos = movidosAlAhorro(data, ultimo);
   const pasado = movimientos.reduce((s, x) => s + x.monto, 0);
+  // Un gasto especial después del corte (ej: el viaje, con plata sacada del ahorro) sale de gastos.
+  const especialesDespues = data.settings.usaReservaAhorro ? data.especiales.filter((x) => eventKey(x) > eventKey(ultimo)) : [];
+  const especialesMonto = especialesDespues.reduce((s, x) => s + x.monto, 0);
   const reservas: Reservas = {
-    gastos: ultimo.mp + ultimo.efectivo - pasado,
+    gastos: ultimo.mp + ultimo.efectivo - pasado - especialesMonto,
     ahorro: ultimo.ahorro + pasado,
     pasado,
-    fecha: movimientos.at(-1)?.fecha ?? ultimo.fecha,
+    especiales: especialesMonto,
+    fecha: [ultimo.fecha, ...movimientos.map((x) => x.fecha), ...especialesDespues.map((x) => x.fecha)].sort().at(-1)!,
   };
 
   return {
@@ -468,6 +475,8 @@ export function necesidadReservaGastos(data: Data, engine: EngineResult) {
     diferencia,
     /** Lo que sobra, en pesos enteros: lo que se ofrece pasar al ahorro. */
     paraAhorrar: Math.max(0, Math.floor(diferencia / 100) * 100),
+    /** Lo que falta, en pesos enteros redondeados para arriba: lo que se ofrece sacar del ahorro. */
+    paraSacar: Math.max(0, Math.ceil(-diferencia / 100) * 100),
     /** Lo reservado para el mes que viene, si su sueldo ya está cobrado. */
     mesQueViene: planSig ? { mes: sig, monto: mesQueViene } : null,
   };

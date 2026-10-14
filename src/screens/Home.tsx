@@ -263,7 +263,7 @@ function Reservas({ engine }: { engine: EngineResult }) {
   const r = engine.reservas;
   if (!u || !r || m.ahorroAcumulado == null) return null;
   const dia = r.fecha === engine.hoy ? "hoy" : `el ${dayLabel(r.fecha)}`;
-  const cuando = r.pasado ? `actualizado ${dia}` : r.fecha === engine.hoy ? "al corte de hoy" : `al corte del ${dayLabel(r.fecha)}`;
+  const cuando = r.pasado || r.especiales ? `actualizado ${dia}` : r.fecha === engine.hoy ? "al corte de hoy" : `al corte del ${dayLabel(r.fecha)}`;
   const items = [
     {
       label: "Reserva de gastos",
@@ -306,7 +306,7 @@ function ParaAhorrar({ engine }: { engine: EngineResult }) {
   const data = useApp((s) => s.data);
   const w = engine.actual;
   const u = engine.ultimoCorte;
-  const r = necesidadReservaGastos(data, engine);
+  const r = data.settings.usaReservaAhorro ? necesidadReservaGastos(data, engine) : null;
   // Con el corte atrasado los números no son de esta semana: primero el corte.
   if (!r || !w || !u || u.fecha < w.lunes || r.paraAhorrar < MINIMO_PARA_AHORRAR) return null;
   const mes = (m: string) => monthLabel(m, { capital: false, year: false });

@@ -17,7 +17,7 @@ export type SheetSpec =
   | { kind: "plan" }
   | { kind: "meta" }
   | { kind: "sobrante" }
-  | { kind: "ahorrar" };
+  | { kind: "ahorrar"; sacar?: boolean };
 
 export interface Toast {
   id: number;

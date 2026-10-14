@@ -90,8 +90,9 @@ llevan `creadoEn` un segundo antes que el corte → quedan **antes** del corte.
 
 **Reservas y "Ahorrar"** (`engine.reservas`, `necesidadReservaGastos`):
 
-- Saldo de cada reserva = el del último corte + lo que pasaste al ahorro después
-  (`PaseAlAhorro` del botón "Ahorrar" y `SobranteAlAhorro`), solo si hay reserva de ahorro aparte.
+- Saldo de cada reserva = el del último corte + lo que moviste después (`PaseAlAhorro`: positivo
+  de "Ahorrar", negativo de "Sacar del ahorro"; y `SobranteAlAhorro`) − gastos especiales
+  cargados después (salen de gastos). Solo si hay reserva de ahorro aparte.
 - Un pase **no es gasto ni toca el límite**: el gasto se mide con el total y el total no cambia.
   El próximo corte precarga el ahorro con los pases y vuelve a ser la verdad.
 - "Te sobran" = gastos − (tarjetas del mes pendientes **al corte** + lo que queda de límite esta

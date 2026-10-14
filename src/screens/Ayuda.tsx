@@ -65,6 +65,10 @@ export function Ayuda() {
             Pasar plata de una reserva a otra <b>no es gasto</b>: el corte mide el total, que no cambia. Tus reservas se actualizan al toque y
             el próximo corte confirma los saldos.
           </p>
+          <p>
+            Si te falta en gastos, en la misma hoja tenés <b>Sacar del ahorro</b>. Tampoco te sube el límite: si es para algo grande (un
+            viaje, un regalo), cargalo como gasto especial.
+          </p>
         </Bloque>
 
         <Bloque icon={<Sparkles className="size-4" />} title="El arrastre">

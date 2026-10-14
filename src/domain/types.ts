@@ -155,13 +155,14 @@ export interface SobranteAlAhorro {
 }
 
 /**
- * Plata que pasaste de la reserva de gastos a la de ahorro ("Ahorrar"). No es gasto ni toca el
- * límite (el corte mide el total, que no cambia): solo mueve los saldos que se muestran hasta el
- * próximo corte, que vuelve a ser la verdad.
+ * Plata que moviste entre la reserva de gastos y la de ahorro ("Ahorrar" / "Sacar del ahorro").
+ * No es gasto ni toca el límite (el corte mide el total, que no cambia): solo mueve los saldos que
+ * se muestran hasta el próximo corte, que vuelve a ser la verdad.
  */
 export interface PaseAlAhorro {
   id: string;
   fecha: ISODate;
+  /** Positivo: de gastos al ahorro. Negativo: del ahorro a gastos. */
   monto: number;
   creadoEn: string;
 }

@@ -36,7 +36,7 @@ export function AccionesSheet({ open }: { open: boolean }) {
       <div className="grid gap-2.5 pb-2">
         {item(<CalendarCheck className="size-5" />, "Hacer el corte", "Cuánto tenés hoy. Lo hacés los lunes.", () => openSheet({ kind: "corte" }), true)}
         {puedeAhorrar &&
-          item(<PiggyBank className="size-5" />, "Ahorrar", "Pasá plata de gastos a la reserva de ahorro.", () => openSheet({ kind: "ahorrar" }))}
+          item(<PiggyBank className="size-5" />, "Ahorrar", "Pasá plata de gastos al ahorro (o al revés).", () => openSheet({ kind: "ahorrar" }))}
         {item(<CreditCard className="size-5" />, "Compra con tarjeta", "En 1 o más cuotas.", () => openSheet({ kind: "compra" }))}
         {item(<Gauge className="size-5" />, "¿Cuánto me queda?", "Consultá la semana sin guardar nada.", () => openSheet({ kind: "consulta" }))}
         {item(<Gift className="size-5" />, "Gasto especial", "Algo grande que sale del ahorro (regalo, viaje).", () => openSheet({ kind: "especial" }))}
@@ -321,25 +321,39 @@ export function SobranteSheet({ open }: { open: boolean }) {
 
 /* --------------------------------- Ahorrar --------------------------------- */
 
-/** Pase de la reserva de gastos a la de ahorro: no es gasto, solo mueve los saldos hasta el próximo corte. */
-export function AhorrarSheet({ open }: { open: boolean }) {
+/**
+ * Pase entre la reserva de gastos y la de ahorro, en los dos sentidos: no es gasto ni toca el
+ * límite, solo mueve los saldos hasta el próximo corte.
+ */
+export function AhorrarSheet({ open, sacar: sacarAlAbrir }: { open: boolean; sacar?: boolean }) {
   const data = useApp((s) => s.data);
   const hoy = useApp((s) => s.hoy);
   const dispatch = useApp((s) => s.dispatch);
   const engine = useEngine();
-  const reservas = engine.reservas;
+  const reservas = data.settings.usaReservaAhorro ? engine.reservas : null;
   const reserva = necesidadReservaGastos(data, engine);
   const sobra = reserva?.paraAhorrar ?? 0;
-  const [monto, setMonto] = useState<number | null>(sobra || null);
+  const faltaEnGastos = reserva?.paraSacar ?? 0;
+  const sugerido = (sacar: boolean) => (sacar ? faltaEnGastos : sobra) || null;
+  const [modo, setModo] = useState<"ahorrar" | "sacar">(sacarAlAbrir ? "sacar" : "ahorrar");
+  const [monto, setMonto] = useState<number | null>(() => sugerido(!!sacarAlAbrir));
+  const sacar = modo === "sacar";
   const m = monto ?? 0;
-  const falta = m - (reserva?.diferencia ?? 0);
+  // Lo que suma (o resta) a la reserva de ahorro.
+  const delta = sacar ? -m : m;
+  const quedaCorto = m - (reserva?.diferencia ?? 0);
   const mes = engine.actual ? monthLabel(engine.actual.mes, { capital: false, year: false }) : "este mes";
+
+  function cambiarModo(v: "ahorrar" | "sacar") {
+    setModo(v);
+    setMonto(sugerido(v === "sacar"));
+  }
 
   function guardar() {
     if (!monto) return;
-    dispatch({ type: "pase/save", pase: { id: uid(), fecha: hoy, monto, creadoEn: nowISO() } });
+    dispatch({ type: "pase/save", pase: { id: uid(), fecha: hoy, monto: delta, creadoEn: nowISO() } });
     closeSheet();
-    toast(`${formatARS(monto)} al ahorro`, "good");
+    toast(sacar ? `${formatARS(monto)} a gastos` : `${formatARS(monto)} al ahorro`, "good");
   }
 
   const fila = (label: string, desde: number, hasta: number) => (
@@ -355,34 +369,60 @@ export function AhorrarSheet({ open }: { open: boolean }) {
     <Sheet
       open={open}
       onClose={closeSheet}
-      title="Ahorrar"
-      description="Pasá plata de la reserva de gastos a la de ahorro."
+      title={sacar ? "Sacar del ahorro" : "Ahorrar"}
+      description={sacar ? "Pasá plata de la reserva de ahorro a la de gastos." : "Pasá plata de la reserva de gastos a la de ahorro."}
       footer={
         <Button variant="primary" size="lg" block disabled={!monto || !reservas} onClick={guardar} icon={<PiggyBank className="size-4" />}>
-          {monto ? `Ahorrar ${formatARS(monto)}` : "Ahorrar"}
+          {monto ? `${sacar ? "Sacar" : "Ahorrar"} ${formatARS(monto)}` : sacar ? "Sacar del ahorro" : "Ahorrar"}
         </Button>
       }
     >
       {!reservas ? (
-        <p className="py-6 text-center text-sm text-muted">Hacé tu primer corte para saber cuánto tenés en cada reserva.</p>
+        <p className="py-6 text-center text-sm text-muted">
+          {data.settings.usaReservaAhorro
+            ? "Hacé tu primer corte para saber cuánto tenés en cada reserva."
+            : "Activá la reserva de ahorro aparte en Ajustes para usar esto."}
+        </p>
       ) : (
         <div className="grid gap-4">
+          <Segmented
+            value={modo}
+            onChange={cambiarModo}
+            options={[
+              { value: "ahorrar", label: "Ahorrar" },
+              { value: "sacar", label: "Sacar del ahorro" },
+            ]}
+          />
           <MoneyInput value={monto} onChange={setMonto} size="lg" placeholder="0" />
           <p className="-mt-2 px-1 text-[13px] text-muted">
-            {sobra > 0 ? `Te sobran ${formatARS(sobra)} en gastos. Podés cambiar el monto (por ejemplo, redondearlo).` : "Hoy no te sobra plata en gastos."}
+            {sacar
+              ? faltaEnGastos > 0
+                ? `Te faltan ${formatARS(faltaEnGastos)} en gastos para tus límites y tarjetas de ${mes}.`
+                : "Hoy no te falta plata en gastos."
+              : sobra > 0
+                ? `Te sobran ${formatARS(sobra)} en gastos. Podés cambiar el monto (por ejemplo, redondearlo).`
+                : "Hoy no te sobra plata en gastos."}
           </p>
           <Card className="grid gap-2 p-4 text-[14px]">
-            {fila("Reserva de gastos", reservas.gastos, reservas.gastos - m)}
-            {fila("Reserva de ahorro", reservas.ahorro, reservas.ahorro + m)}
+            {fila("Reserva de gastos", reservas.gastos, reservas.gastos - delta)}
+            {fila("Reserva de ahorro", reservas.ahorro, reservas.ahorro + delta)}
           </Card>
-          {m > 0 && falta >= 100 && (
+          {!sacar && m > 0 && quedaCorto >= 100 && (
             <p className="flex gap-2 text-[13px] text-warn">
               <TriangleAlert className="mt-0.5 size-4 shrink-0" />
-              Es más de lo que te sobra: te van a faltar {formatARS(falta)} en gastos para tus límites y tarjetas de {mes}.
+              Es más de lo que te sobra: te van a faltar {formatARS(quedaCorto)} en gastos para tus límites y tarjetas de {mes}.
+            </p>
+          )}
+          {sacar && m > reservas.ahorro && (
+            <p className="flex gap-2 text-[13px] text-warn">
+              <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+              Es más de lo que tenés en la reserva de ahorro.
             </p>
           )}
           <p className="rounded-xl bg-white/[0.04] p-3 text-[13px] text-muted">
-            Hacé el pase también en Mercado Pago, así coincide con tu próximo corte. No es un gasto: tu límite de la semana no cambia.
+            {sacar
+              ? "Hacé el pase también en Mercado Pago. No te sube el límite de la semana: si es para algo grande (viaje, regalo), cargalo también como gasto especial."
+              : "Hacé el pase también en Mercado Pago, así coincide con tu próximo corte. No es un gasto: tu límite de la semana no cambia."}
           </p>
         </div>
       )}
