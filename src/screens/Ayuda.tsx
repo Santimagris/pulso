@@ -51,8 +51,7 @@ export function Ayuda() {
         <Bloque icon={<CalendarCheck className="size-4" />} title="El corte de los lunes">
           <p>Gasto de la semana = lo que tenías + lo que entró − lo que tenés hoy − pagos de tarjeta − gastos especiales.</p>
           <p>
-            Si te salteás un lunes no pasa nada: el próximo corte reparte el gasto entre las semanas. Y si a mitad de semana querés saber
-            cuánto te queda, usá <b>¿Cuánto me queda?</b> (no guarda nada).
+            Si te salteás un lunes no pasa nada: el próximo corte reparte el gasto entre las semanas.
           </p>
         </Bloque>
 

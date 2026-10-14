@@ -243,10 +243,7 @@ function Hero({ engine }: { engine: EngineResult }) {
           </p>
         )}
 
-        <div className="mt-5 grid grid-cols-2 gap-2">
-          <Button variant="subtle" onClick={() => openSheet({ kind: "consulta" })}>
-            ¿Cuánto me queda?
-          </Button>
+        <div className="mt-5 grid gap-2">
           <Button variant="secondary" icon={<CalendarCheck className="size-4" />} onClick={() => openSheet({ kind: "corte" })}>
             Hacer corte
           </Button>

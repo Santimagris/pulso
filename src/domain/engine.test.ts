@@ -13,7 +13,7 @@ import {
 } from "./bills";
 import { mondaysInMonth, weekRangeLabel } from "./dates";
 import { emptyData, normalizeData } from "./defaults";
-import { computeEngine, consultar, necesidadReservaGastos, planMes } from "./engine";
+import { computeEngine, necesidadReservaGastos, planMes } from "./engine";
 import { computeMetrics, projectGoal } from "./metrics";
 import type { Compra, Corte, Data, GastoEspecial, Ingreso, PagoTarjeta, PaseAlAhorro, Recurrente, Tarjeta } from "./types";
 
@@ -368,14 +368,6 @@ describe("gasto semanal y arrastre", () => {
 /* ------------------------------- consultas ------------------------------- */
 
 describe("consultas", () => {
-  it("¿cuánto me queda? descuenta lo gastado desde el último corte", () => {
-    const d = octubre([["2026-10-12", 1_200_000]]);
-    const e = computeEngine(d, "2026-10-15");
-    const r = consultar(d, e, { mp: $(1_050_000), ahorro: 0, efectivo: 0, usd: 0 });
-    expect(r?.gasto).toBe($(150_000));
-    expect(r?.restante).toBe($(250_000));
-  });
-
   it("necesidad de la reserva de gastos para cubrir el mes", () => {
     const d = octubre([["2026-10-12", 1_000_000]], (d) => {
       d.tarjetas.push(visa);

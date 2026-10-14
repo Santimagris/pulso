@@ -1,8 +1,8 @@
-import { CalendarCheck, CreditCard, Gift, Gauge, PiggyBank, TriangleAlert, Wallet } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { CalendarCheck, CreditCard, Gift, PiggyBank, TriangleAlert, Wallet } from "lucide-react";
+import { useState, type ReactNode } from "react";
 
-import { dayLabel, monthLabel, weekRangeLabel } from "@/domain/dates";
-import { consultar, necesidadReservaGastos, sortedCortes } from "@/domain/engine";
+import { monthLabel } from "@/domain/dates";
+import { necesidadReservaGastos } from "@/domain/engine";
 import { formatARS } from "@/domain/money";
 import type { GastoEspecial, Ingreso } from "@/domain/types";
 import { useEngine } from "@/lib/hooks";
@@ -10,7 +10,7 @@ import { nowISO, uid } from "@/lib/cn";
 import { closeSheet, openSheet, toast } from "@/lib/ui-store";
 import { useApp } from "@/sync/store";
 import { DateInput, Field, MoneyInput, Segmented, TextInput } from "@/ui/form";
-import { Button, Card, HeroMoney, Progress } from "@/ui/primitives";
+import { Button, Card } from "@/ui/primitives";
 import { Sheet } from "@/ui/sheet";
 
 /* ------------------------------- Acciones (+) ------------------------------- */
@@ -38,105 +38,9 @@ export function AccionesSheet({ open }: { open: boolean }) {
         {puedeAhorrar &&
           item(<PiggyBank className="size-5" />, "Ahorrar", "Pasá plata de gastos al ahorro (o al revés).", () => openSheet({ kind: "ahorrar" }))}
         {item(<CreditCard className="size-5" />, "Compra con tarjeta", "En 1 o más cuotas.", () => openSheet({ kind: "compra" }))}
-        {item(<Gauge className="size-5" />, "¿Cuánto me queda?", "Consultá la semana sin guardar nada.", () => openSheet({ kind: "consulta" }))}
         {item(<Gift className="size-5" />, "Gasto especial", "Algo grande que sale del ahorro (regalo, viaje).", () => openSheet({ kind: "especial" }))}
         {item(<Wallet className="size-5" />, "Ingreso", "Sueldo, aguinaldo u otra plata que entró.", () => openSheet({ kind: "ingreso" }))}
       </div>
-    </Sheet>
-  );
-}
-
-/* -------------------------------- Consulta -------------------------------- */
-
-export function ConsultaSheet({ open }: { open: boolean }) {
-  const data = useApp((s) => s.data);
-  const engine = useEngine();
-  const ultimo = sortedCortes(data).at(-1);
-  const { settings } = data;
-  // Con reserva de ahorro aparte y el corte de esta semana: se anota la cuenta (donde queda lo de la
-  // semana). La reserva de gastos es la del Inicio (con la cuenta incluida), solo para chequear: lo
-  // gastado es lo que bajó la cuenta desde lo que quedaba para la semana al corte.
-  const w = engine.actual;
-  const res = settings.usaReservaAhorro && ultimo && w && ultimo.fecha >= w.lunes ? engine.reservas : null;
-  const enCuentaAlCorte = w ? Math.max(0, w.limite - w.gastadoParcial) : 0;
-  const [cuenta, setCuenta] = useState<number | null>(null);
-  const [resGastos, setResGastos] = useState<number | null>(
-    res && ultimo ? res.gastos - ultimo.efectivo : 0,
-  );
-  const [mpTotal, setMpTotal] = useState<number | null>(null);
-  const mp = res ? (cuenta == null ? null : (resGastos ?? 0) - enCuentaAlCorte + cuenta) : mpTotal;
-  const [ahorro, setAhorro] = useState<number | null>(engine.reservas?.ahorro ?? ultimo?.ahorro ?? 0);
-  const [efectivo, setEfectivo] = useState<number | null>(ultimo?.efectivo ?? 0);
-  const [usd, setUsd] = useState<number | null>(ultimo?.usd ?? 0);
-
-  const r = useMemo(
-    () => (mp == null ? null : consultar(data, engine, { mp, ahorro: ahorro ?? 0, efectivo: efectivo ?? 0, usd: usd ?? 0 })),
-    [data, engine, mp, ahorro, efectivo, usd],
-  );
-
-  return (
-    <Sheet
-      open={open}
-      onClose={closeSheet}
-      title="¿Cuánto me queda?"
-      description={ultimo ? `Comparo con tu corte del ${dayLabel(ultimo.fecha)}. No se guarda nada.` : "Hacé tu primer corte para poder consultar."}
-      footer={
-        <Button block size="lg" variant="secondary" onClick={closeSheet}>
-          Listo
-        </Button>
-      }
-    >
-      {!ultimo || !engine.actual ? (
-        <p className="py-6 text-center text-sm text-muted">Todavía no hay cortes.</p>
-      ) : (
-        <div className="grid gap-4">
-          {res ? (
-            <>
-              <Field label="Saldo de tu cuenta ahora">
-                <MoneyInput value={cuenta} onChange={setCuenta} size="lg" placeholder="Lo que ves en Mercado Pago" />
-              </Field>
-              <Field label="Reserva de gastos" hint="La del Inicio, con lo de la cuenta incluido. Es para chequear: si no coincide, corregila.">
-                <MoneyInput value={resGastos} onChange={setResGastos} />
-              </Field>
-            </>
-          ) : (
-            <MoneyInput value={mpTotal} onChange={setMpTotal} size="lg" placeholder="Saldo de Mercado Pago ahora" />
-          )}
-          {settings.usaReservaAhorro && (
-            <Field label="Reserva de ahorro" hint="Si no la tocaste, dejala como está.">
-              <MoneyInput value={ahorro} onChange={setAhorro} />
-            </Field>
-          )}
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Efectivo">
-              <MoneyInput value={efectivo} onChange={setEfectivo} />
-            </Field>
-            {settings.usaDolares && (
-              <Field label="Dólares">
-                <MoneyInput moneda="USD" value={usd} onChange={setUsd} />
-              </Field>
-            )}
-          </div>
-          {r && (
-            <Card className="grid gap-3 p-4">
-              <div className="text-[13px] text-muted">Te quedan para la semana del {weekRangeLabel(engine.actual.lunes)}</div>
-              <HeroMoney value={Math.max(0, r.restante)} className="text-[40px] leading-none" tone={r.restante < 0 ? "bad" : undefined} />
-              <Progress value={r.gastoSemana / Math.max(1, r.limite)} tone={r.restante < 0 ? "bad" : "brand"} />
-              <div className="text-[13px] text-muted">
-                Llevás gastado {formatARS(r.gastoSemana)} de {formatARS(Math.max(0, r.limite))}
-                {r.restante < 0 && <span className="text-bad"> · te pasaste {formatARS(-r.restante)}</span>}
-              </div>
-              {(r.pagos > 0 || r.especiales > 0 || r.ingresos > 0) && (
-                <div className="text-[12px] text-faint">
-                  Ya descuenta {r.pagos > 0 && `pagos de tarjeta ${formatARS(r.pagos)} `}
-                  {r.especiales > 0 && `especiales ${formatARS(r.especiales)} `}
-                  {r.ingresos > 0 && `y suma ingresos ${formatARS(r.ingresos)}`} cargados desde el corte.
-                </div>
-              )}
-            </Card>
-          )}
-        </div>
-      )}
     </Sheet>
   );
 }

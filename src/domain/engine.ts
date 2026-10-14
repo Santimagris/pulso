@@ -430,17 +430,6 @@ export function computeEngine(data: Data, hoy: ISODate): EngineResult {
 /*  Consultas derivadas                                                        */
 /* -------------------------------------------------------------------------- */
 
-/** "¿Cuánto me queda?": gasto desde el último corte con los saldos de ahora (no guarda nada). */
-export function consultar(data: Data, engine: EngineResult, saldos: Saldos) {
-  const ultimo = engine.ultimoCorte;
-  const actual = engine.actual;
-  if (!ultimo || !actual) return null;
-  const tc = data.settings.tipoCambio;
-  const r = gastoEntre(data, ultimo, saldos, null, tc);
-  const restante = actual.limite - actual.gastadoParcial - r.gasto;
-  return { ...r, gastoSemana: actual.gastadoParcial + r.gasto, restante, limite: actual.limite };
-}
-
 /**
  * "Organizá tus reservas": lo que la reserva de gastos necesita para lo que queda del mes y lo que
  * sobra (eso se puede ahorrar). Todo a la fecha del último corte, más lo que pasaste al ahorro

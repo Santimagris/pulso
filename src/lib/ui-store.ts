@@ -6,7 +6,6 @@ import type { ISOMonth } from "@/domain/types";
 export type SheetSpec =
   | { kind: "acciones" }
   | { kind: "corte"; corteId?: string }
-  | { kind: "consulta" }
   | { kind: "compra"; compraId?: string; tarjetaId?: string }
   | { kind: "pago"; tarjetaId: string; mes: ISOMonth }
   | { kind: "tarjeta"; tarjetaId?: string }

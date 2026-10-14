@@ -41,7 +41,7 @@ src/
 │  ├─ github.ts       API de contenidos (leer/escribir data.json, base64 UTF-8)
 │  └─ store.ts        ★ sync local-first: remote + pending + reintentos y conflictos
 ├─ screens/           Inicio, Tarjetas, Ahorro, Historial, Ajustes, Ayuda, Setup
-├─ sheets/            hojas (corte, compra, pago, consulta, plan, meta…) + SheetHost
+├─ sheets/            hojas (corte, compra, pago, plan, meta…) + SheetHost
 ├─ charts/BarChart    barras de una serie con marca de referencia (specs de dataviz)
 ├─ ui/                primitivas (Button, Card, MoneyInput, Sheet, Segmented…)
 └─ layout/            AppShell (sidebar en compu, barra inferior en celu), SyncPill
@@ -99,10 +99,6 @@ llevan `creadoEn` un segundo antes que el corte → quedan **antes** del corte.
   semana + base × lunes que faltan [+ todo el mes que viene si su sueldo ya está en el corte]).
   Todo a la fecha del corte: pagar una tarjeta después no cambia lo que sobra. El Inicio ofrece
   "Ahorrar" desde $10.000, con el corte de esta semana hecho.
-- "¿Cuánto me queda?" (no guarda nada): con reserva de ahorro aparte y el corte de esta semana,
-  se anota solo el saldo de la **cuenta** (donde queda lo de la semana). La reserva de gastos es la
-  del Inicio (incluye la cuenta), para chequear y corregir: MP = reserva − lo que quedaba de la
-  semana al corte + cuenta.
 - La tarjeta "Reserva de ahorro" del Inicio, con dólares activados, muestra pesos y dólares por separado.
 
 **El motor es una función pura** `computeEngine(data, hoy)`: todo se recalcula desde los
