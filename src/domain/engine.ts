@@ -118,6 +118,11 @@ export interface Reservas {
   pasado: number;
   /** Gastos especiales cargados después del corte: salen de la reserva de gastos; ya aplicados. */
   especiales: number;
+  /**
+   * Solo la reserva de gastos de Mercado Pago (sin la cuenta ni el efectivo), si el corte la anotó
+   * aparte. Es lo que se muestra: durante la semana se gasta de la cuenta y la reserva no se mueve.
+   */
+  reservaGastos?: number;
   /** Fecha de lo último que los movió: el corte o algo posterior. */
   fecha: ISODate;
 }
@@ -407,6 +412,7 @@ export function computeEngine(data: Data, hoy: ISODate): EngineResult {
     ahorro: ultimo.ahorro + pasado,
     pasado,
     especiales: especialesMonto,
+    reservaGastos: ultimo.mpReserva == null ? undefined : ultimo.mpReserva - pasado - especialesMonto,
     fecha: [ultimo.fecha, ...movimientos.map((x) => x.fecha), ...especialesDespues.map((x) => x.fecha)].sort().at(-1)!,
   };
 

@@ -145,7 +145,7 @@ function Movimientos() {
         fecha: c.fecha,
         icon: <CalendarCheck className="size-4" />,
         title: "Corte",
-        sub: `MP ${formatARS(c.mp)}${c.ahorro ? ` · ahorro ${formatARS(c.ahorro)}` : ""}${c.efectivo ? ` · efectivo ${formatARS(c.efectivo)}` : ""}${c.nota ? ` · ${c.nota}` : ""}`,
+        sub: `${c.mpReserva != null ? `cuenta ${formatARS(c.mp - c.mpReserva)} · reserva ${formatARS(c.mpReserva)}` : `MP ${formatARS(c.mp)}`}${c.ahorro ? ` · ahorro ${formatARS(c.ahorro)}` : ""}${c.efectivo ? ` · efectivo ${formatARS(c.efectivo)}` : ""}${c.nota ? ` · ${c.nota}` : ""}`,
         amount: formatARS(valorSaldos(c, tc)),
         onClick: () => openSheet({ kind: "corte", corteId: c.id }),
       });

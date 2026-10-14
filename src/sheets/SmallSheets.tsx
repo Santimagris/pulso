@@ -330,7 +330,7 @@ export function AhorrarSheet({ open, sacar: sacarAlAbrir }: { open: boolean; sac
                 : "Hoy no te sobra plata en gastos."}
           </p>
           <Card className="grid gap-2 p-4 text-[14px]">
-            {fila("Reserva de gastos", reservas.gastos, reservas.gastos - delta)}
+            {fila("Reserva de gastos", reservas.reservaGastos ?? reservas.gastos, (reservas.reservaGastos ?? reservas.gastos) - delta)}
             {fila("Reserva de ahorro", reservas.ahorro, reservas.ahorro + delta)}
           </Card>
           {!sacar && m > 0 && quedaCorto >= 100 && (

@@ -266,8 +266,9 @@ function Reservas({ engine }: { engine: EngineResult }) {
     {
       label: "Reserva de gastos",
       icon: <Wallet className="size-4" />,
-      value: r.gastos,
-      detalle: u.efectivo ? `incluye ${formatARS(u.efectivo)} en efectivo` : null,
+      // Con el corte separado: solo la reserva (la cuenta es lo de la semana, ya está arriba).
+      value: r.reservaGastos ?? r.gastos,
+      detalle: u.efectivo ? (r.reservaGastos != null ? `+ ${formatARS(u.efectivo)} en efectivo` : `incluye ${formatARS(u.efectivo)} en efectivo`) : null,
     },
     {
       label: "Reserva de ahorro",

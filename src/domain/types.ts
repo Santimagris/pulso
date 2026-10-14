@@ -47,6 +47,8 @@ export interface Corte {
   fecha: ISODate;
   /** Mercado Pago / cuenta con la que gastás (incluida su reserva de gastos). */
   mp: number;
+  /** De `mp`, lo que está en la reserva de gastos (si se anotó aparte; el resto es la cuenta). */
+  mpReserva?: number;
   /** Reserva aparte para el ahorro (0 si no la usás). */
   ahorro: number;
   efectivo: number;

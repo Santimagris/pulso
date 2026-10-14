@@ -58,7 +58,13 @@ export function CorteSheet({ open, corteId }: { open: boolean; corteId?: string 
   const esPrimero = !editando && cortes.length === 0;
 
   const [fecha, setFecha] = useState(editando?.fecha ?? hoy);
-  const [mp, setMp] = useState<number | null>(editando?.mp ?? null);
+  // Con reserva de ahorro aparte, Mercado Pago se anota en dos: cuenta y reserva de gastos (se guarda
+  // el total en `mp` y la reserva en `mpReserva`). Un corte viejo sin separar se edita todo en la cuenta.
+  const separar = settings.usaReservaAhorro;
+  const [mp, setMp] = useState<number | null>(
+    editando ? (separar && editando.mpReserva != null ? editando.mp - editando.mpReserva : editando.mp) : null,
+  );
+  const [mpReserva, setMpReserva] = useState<number | null>(separar ? (editando?.mpReserva ?? null) : null);
   // Al crear, el ahorro viene con lo que pasaste al ahorro después del último corte.
   const pasado = !editando && anterior ? movidosAlAhorro(data, anterior).reduce((s, x) => s + x.monto, 0) : 0;
   const [ahorro, setAhorro] = useState<number | null>(
@@ -106,7 +112,8 @@ export function CorteSheet({ open, corteId }: { open: boolean; corteId?: string 
     const corte: Corte = {
       id: editando?.id ?? nuevoId,
       fecha,
-      mp: mp ?? 0,
+      mp: (mp ?? 0) + (mpReserva ?? 0),
+      mpReserva: mpReserva ?? undefined,
       ahorro: ahorro ?? 0,
       efectivo: efectivo ?? 0,
       usd: usd ?? 0,
@@ -188,11 +195,28 @@ export function CorteSheet({ open, corteId }: { open: boolean; corteId?: string 
     >
       <div className="grid gap-5">
         <section className="grid gap-3.5">
-          <MoneyInput value={mp} onChange={setMp} size="lg" id="corte-mp" placeholder="0" />
-          <p className="-mt-2 px-1 text-[13px] text-muted">
-            {settings.usaReservaAhorro ? "Mercado Pago para gastar (cuenta + reserva de gastos)" : "Mercado Pago (todo: cuenta + reservas)"}
-            {anterior && <span className="text-faint"> · la vez pasada {formatARS(anterior.mp)}</span>}
-          </p>
+          {separar ? (
+            <>
+              <Field label="Cuenta" htmlFor="corte-mp">
+                <MoneyInput value={mp} onChange={setMp} size="lg" id="corte-mp" placeholder="0" />
+              </Field>
+              <Field
+                label="Reserva de gastos"
+                htmlFor="corte-reserva"
+                hint={anterior?.mpReserva != null ? `La vez pasada ${formatARS(anterior.mpReserva)}.` : "Lo que tenés en la reserva de gastos de Mercado Pago."}
+              >
+                <MoneyInput id="corte-reserva" value={mpReserva} onChange={setMpReserva} />
+              </Field>
+            </>
+          ) : (
+            <>
+              <MoneyInput value={mp} onChange={setMp} size="lg" id="corte-mp" placeholder="0" />
+              <p className="-mt-2 px-1 text-[13px] text-muted">
+                Mercado Pago (todo: cuenta + reservas)
+                {anterior && <span className="text-faint"> · la vez pasada {formatARS(anterior.mp)}</span>}
+              </p>
+            </>
+          )}
           {settings.usaReservaAhorro && (
             <Field
               label="Reserva de ahorro"

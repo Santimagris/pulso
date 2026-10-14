@@ -116,7 +116,7 @@ export function Ahorro() {
               </div>
               <div className="mt-3 grid gap-1.5 text-[14px]">
                 <div className="flex justify-between">
-                  <span className="text-muted">En gastos tenés</span>
+                  <span className="text-muted">En gastos tenés (cuenta + reserva)</span>
                   <span className="tnum">{formatARS(reserva.tenes)}</span>
                 </div>
                 <div className="flex justify-between">

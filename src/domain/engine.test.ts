@@ -431,6 +431,21 @@ describe("reservas y pases al ahorro", () => {
     expect(computeEngine(d, "2026-10-19").intervalos.at(-1)?.gasto).toBe($(350_000));
   });
 
+  it("con la reserva de gastos anotada aparte, se muestra sola y los cálculos usan el total", () => {
+    const sinSeparar = octubre([["2026-10-12", 1_500_000]]);
+    const d = octubre([], (d) => d.cortes.push(corte("2026-10-12", 1_500_000, { mpReserva: $(1_100_000) })));
+    const [a, e] = [computeEngine(sinSeparar, "2026-10-13"), computeEngine(d, "2026-10-13")];
+    expect(e.actual?.limite).toBe(a.actual?.limite);
+    expect(necesidadReservaGastos(d, e)).toEqual(necesidadReservaGastos(sinSeparar, a));
+    expect(a.reservas?.reservaGastos).toBeUndefined();
+    expect(e.reservas?.gastos).toBe($(1_500_000));
+    expect(e.reservas?.reservaGastos).toBe($(1_100_000));
+    // "Ahorrar" y un especial después del corte salen de la reserva.
+    d.pases.push(pase("2026-10-13", 200_000));
+    d.especiales.push(especial("2026-10-13", 50_000));
+    expect(computeEngine(d, "2026-10-13").reservas?.reservaGastos).toBe($(850_000));
+  });
+
   it("un gasto especial cargado después del corte sale de la reserva de gastos y de lo que sobra", () => {
     const d = octubre([["2026-10-12", 1_500_000]], (d) => d.especiales.push(especial("2026-10-10", 50_000)));
     const antes = computeEngine(d, "2026-10-14");
