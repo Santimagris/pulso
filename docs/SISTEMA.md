@@ -100,8 +100,9 @@ llevan `creadoEn` un segundo antes que el corte → quedan **antes** del corte.
   Todo a la fecha del corte: pagar una tarjeta después no cambia lo que sobra. El Inicio ofrece
   "Ahorrar" desde $10.000, con el corte de esta semana hecho.
 - "¿Cuánto me queda?" (no guarda nada): con reserva de ahorro aparte y el corte de esta semana,
-  se anota solo el saldo de la **cuenta**; la reserva de gastos viene calculada (reserva de gastos
-  − efectivo − lo que quedaba de la semana al corte) y se puede corregir. Cuenta + reserva = MP.
+  se anota solo el saldo de la **cuenta** (donde queda lo de la semana). La reserva de gastos es la
+  del Inicio (incluye la cuenta), para chequear y corregir: MP = reserva − lo que quedaba de la
+  semana al corte + cuenta.
 - La tarjeta "Reserva de ahorro" del Inicio, con dólares activados, muestra pesos y dólares por separado.
 
 **El motor es una función pura** `computeEngine(data, hoy)`: todo se recalcula desde los
