@@ -5,7 +5,7 @@ import { BarChart, Legend, type BarDatum } from "@/charts/BarChart";
 import { monthLabel, monthShort } from "@/domain/dates";
 import { necesidadReservaGastos } from "@/domain/engine";
 import { formatARS, formatMoney, formatPercent, formatUSD } from "@/domain/money";
-import { mesesComparables, projectGoal } from "@/domain/metrics";
+import { ahorradoEsteMes, mesesComparables, projectGoal } from "@/domain/metrics";
 import { useEngine, useMesActual, useMetrics } from "@/lib/hooks";
 import { cn } from "@/lib/cn";
 import { openSheet } from "@/lib/ui-store";
@@ -23,6 +23,8 @@ export function Ahorro() {
   const goal = useMemo(() => projectGoal(data, engine, m, mes), [data, engine, m, mes]);
   const reserva = s.usaReservaAhorro ? necesidadReservaGastos(data, engine) : null;
   const actual = engine.actual;
+  const ahorrado = ahorradoEsteMes(data, engine, mes);
+  const parcial = engine.resumenes.find((r) => r.mes === mes)?.parcial ?? false;
 
   const meses = mesesComparables(engine);
   const chart: BarDatum[] = meses.slice(-8).map((r) => ({
@@ -64,7 +66,9 @@ export function Ahorro() {
             <Card className="p-5">
               <div className="flex items-center justify-between">
                 <div className="text-[13px] font-medium text-muted">{monthLabel(mes)}</div>
-                {actual && actual.acumulado < 0 ? (
+                {parcial && ahorrado != null ? (
+                  <Badge>Mes parcial</Badge>
+                ) : actual && actual.acumulado < 0 ? (
                   <Badge tone="warn">En riesgo</Badge>
                 ) : plan.faltante > 0 ? (
                   <Badge tone="bad">No alcanza</Badge>
@@ -72,15 +76,39 @@ export function Ahorro() {
                   <Badge tone="good">En camino</Badge>
                 )}
               </div>
-              <div className="mt-3 flex items-baseline justify-between gap-3">
-                <span className="text-[15px] text-ink-2">Ahorro del mes</span>
-                <span className="text-2xl font-semibold text-good tnum">{formatARS(plan.ahorroMeta)}</span>
-              </div>
-              <div className="mt-1 text-[13px] text-muted">
-                {s.ahorroModo === "porcentaje" ? `${s.ahorroPorcentaje}% del sueldo` : "monto fijo"}
-                {plan.aguinaldoAhorro > 0 && ` + ${formatARS(plan.aguinaldoAhorro)} de aguinaldo`}
-                {plan.extrasAhorro > 0 && ` + ${formatARS(plan.extrasAhorro)} de extras`}
-              </div>
+              {ahorrado != null ? (
+                <>
+                  {/* Lo real primero; el plan es la referencia. */}
+                  <div className="mt-3 flex items-baseline justify-between gap-3">
+                    <span className="text-[15px] text-ink-2">Ahorraste este mes</span>
+                    <span className={cn("text-2xl font-semibold tnum", ahorrado < 0 ? "text-bad" : "text-good")}>{formatARS(ahorrado)}</span>
+                  </div>
+                  <Progress className="mt-3" value={plan.ahorroMeta > 0 ? Math.max(0, ahorrado) / plan.ahorroMeta : 0} tone={ahorrado < 0 ? "bad" : "brand"} />
+                  <div className="mt-2 text-[13px] text-muted">
+                    Plan: {formatARS(plan.ahorroMeta)} ({s.ahorroModo === "porcentaje" ? `${s.ahorroPorcentaje}% del sueldo` : "monto fijo"}
+                    {plan.aguinaldoAhorro > 0 && ` + ${formatARS(plan.aguinaldoAhorro)} de aguinaldo`}
+                    {plan.extrasAhorro > 0 && ` + ${formatARS(plan.extrasAhorro)} de extras`})
+                  </div>
+                  {parcial && (
+                    <p className="mt-2 text-[13px] text-muted">
+                      Arrancaste a mitad de mes, con parte del sueldo ya usada: el plan completo no aplica a{" "}
+                      {monthLabel(mes, { capital: false, year: false })}.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="mt-3 flex items-baseline justify-between gap-3">
+                    <span className="text-[15px] text-ink-2">Ahorro del mes</span>
+                    <span className="text-2xl font-semibold text-good tnum">{formatARS(plan.ahorroMeta)}</span>
+                  </div>
+                  <div className="mt-1 text-[13px] text-muted">
+                    {s.ahorroModo === "porcentaje" ? `${s.ahorroPorcentaje}% del sueldo` : "monto fijo"}
+                    {plan.aguinaldoAhorro > 0 && ` + ${formatARS(plan.aguinaldoAhorro)} de aguinaldo`}
+                    {plan.extrasAhorro > 0 && ` + ${formatARS(plan.extrasAhorro)} de extras`}
+                  </div>
+                </>
+              )}
               {(plan.tarjetasEspeciales > 0 || engine.resumenes.find((r) => r.mes === mes)?.especialesDirectos) ? (
                 <div className="mt-2 text-[13px] text-info">
                   Gastos especiales del mes: −{formatARS(plan.tarjetasEspeciales + (engine.resumenes.find((r) => r.mes === mes)?.especialesDirectos ?? 0))}
@@ -101,10 +129,13 @@ export function Ahorro() {
                   </Button>
                 </div>
               )}
-              <div className="mt-4 rounded-xl bg-white/[0.04] p-3 text-[13px] leading-relaxed text-muted">
-                <b className="text-ink-2">El día que cobrás:</b> pasá {formatARS(plan.ahorroMeta)} a la reserva de ahorro antes de gastar nada. Lo que queda es para
-                tarjetas y el día a día.
-              </div>
+              {/* El consejo sirve antes de cobrar; después de cobrar ya se ve lo real. */}
+              {(ahorrado == null || plan.sueldoEstimado) && (
+                <div className="mt-4 rounded-xl bg-white/[0.04] p-3 text-[13px] leading-relaxed text-muted">
+                  <b className="text-ink-2">El día que cobrás:</b> pasá {formatARS(plan.ahorroMeta)} a la reserva de ahorro antes de gastar nada. Lo que queda es para
+                  tarjetas y el día a día.
+                </div>
+              )}
             </Card>
           )}
 

@@ -14,7 +14,7 @@ import {
 import { mondaysInMonth, weekRangeLabel } from "./dates";
 import { emptyData, normalizeData } from "./defaults";
 import { computeEngine, necesidadReservaGastos, planMes } from "./engine";
-import { computeMetrics, projectGoal } from "./metrics";
+import { ahorradoEsteMes, computeMetrics, projectGoal } from "./metrics";
 import type { Compra, Corte, Data, GastoEspecial, Ingreso, PagoTarjeta, PaseAlAhorro, Recurrente, Tarjeta } from "./types";
 
 /* ------------------------------- helpers ------------------------------- */
@@ -382,6 +382,28 @@ describe("consultas", () => {
 });
 
 /* -------------------------- reservas y "Ahorrar" -------------------------- */
+
+describe("ahorrado este mes", () => {
+  it("compara la reserva de ahorro de hoy con la del último corte antes del mes", () => {
+    const d = octubre([], (d) => {
+      d.cortes.push(corte("2026-09-28", 500_000, { ahorro: $(100_000) }));
+      d.cortes.push(corte("2026-10-12", 900_000, { ahorro: $(400_000), usd: 10_000 })); // US$100
+      d.pases.push(pase("2026-10-13", 50_000));
+    });
+    // 400K + 50K del pase + US$100 a 1500 − 100K
+    expect(ahorradoEsteMes(d, computeEngine(d, "2026-10-14"), "2026-10")).toBe($(500_000));
+  });
+
+  it("si empezaste a mitad de mes, cuenta desde tu primer corte", () => {
+    const d = octubre([], (d) => {
+      d.cortes.push(corte("2026-10-13", 1_000_000));
+      d.cortes.push(corte("2026-10-15", 700_000, { ahorro: $(380_000) }));
+    });
+    expect(ahorradoEsteMes(d, computeEngine(d, "2026-10-18"), "2026-10")).toBe($(380_000));
+    d.settings.usaReservaAhorro = false;
+    expect(ahorradoEsteMes(d, computeEngine(d, "2026-10-18"), "2026-10")).toBeNull();
+  });
+});
 
 describe("reservas y pases al ahorro", () => {
   it("ahorrar no es gasto ni toca el límite: solo mueve los saldos hasta el próximo corte", () => {

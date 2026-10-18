@@ -96,6 +96,8 @@ llevan `creadoEn` un segundo antes que el corte → quedan **antes** del corte.
 - Con reserva de ahorro aparte, el corte pide **Cuenta** y **Reserva de gastos** por separado: se guarda
   el total en `mp` y la reserva en `mpReserva` (opcional; los cortes viejos no la tienen). Los cálculos
   usan el total; el Inicio y la hoja "Ahorrar" muestran solo la reserva (`reservas.reservaGastos`).
+- Ahorro → "Ahorraste este mes" (`ahorradoEsteMes`): reserva de ahorro + dólares de hoy − la del último
+  corte antes del mes (o del primero del mes si arrancaste a mitad). El plan queda como referencia.
 - Un pase **no es gasto ni toca el límite**: el gasto se mide con el total y el total no cambia.
   El próximo corte precarga el ahorro con los pases y vuelve a ser la verdad.
 - "Te sobran" = gastos − (tarjetas del mes pendientes **al corte** + lo que queda de límite esta
