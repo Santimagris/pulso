@@ -336,7 +336,8 @@ export function AhorrarSheet({ open, sacar: sacarAlAbrir }: { open: boolean; sac
           {!sacar && m > 0 && quedaCorto >= 100 && (
             <p className="flex gap-2 text-[13px] text-warn">
               <TriangleAlert className="mt-0.5 size-4 shrink-0" />
-              Es más de lo que te sobra: te van a faltar {formatARS(quedaCorto)} en gastos para tus límites y tarjetas de {mes}.
+              Es más de lo que te sobra: te van a faltar {formatARS(quedaCorto)} en gastos para tus límites y tarjetas de {mes}, y tu límite
+              de la semana va a bajar.
             </p>
           )}
           {sacar && m > reservas.ahorro && (
@@ -347,7 +348,9 @@ export function AhorrarSheet({ open, sacar: sacarAlAbrir }: { open: boolean; sac
           )}
           <p className="rounded-xl bg-white/[0.04] p-3 text-[13px] text-muted">
             {sacar
-              ? "Hacé el pase también en Mercado Pago. No te sube el límite de la semana: si es para algo grande (viaje, regalo), cargalo también como gasto especial."
+              ? faltaEnGastos > 0
+                ? `Hacé el pase también en Mercado Pago. Hasta ${formatARS(faltaEnGastos)} te devuelve el límite que bajó por la plata que faltaba; más que eso no lo sube.`
+                : "Hacé el pase también en Mercado Pago. No te sube el límite de la semana: si es para algo grande (viaje, regalo), cargalo también como gasto especial."
               : "Hacé el pase también en Mercado Pago, así coincide con tu próximo corte. No es un gasto: tu límite de la semana no cambia."}
           </p>
         </div>

@@ -78,6 +78,11 @@ export function Ayuda() {
             <b>Si te pasás</b>, se descuenta repartido entre las semanas que quedan del mes, para que ninguna quede en cero. Si a fin de mes
             no lo recuperaste, sale del ahorro de ese mes y <b>el mes siguiente arrancás limpio</b>. Nunca más un número hundido por meses.
           </p>
+          <p>
+            <b>Si en gastos no alcanza</b> para los límites y tarjetas que quedan del mes (por ejemplo, cargaste una cuota tarde), el límite
+            baja: lo que falta se reparte entre las semanas que quedan. Así lo que dice "Podés gastar" es plata que tenés. Si preferís, lo
+            sacás del ahorro y el límite vuelve.
+          </p>
         </Bloque>
 
         <Bloque icon={<Gift className="size-4" />} title="Gastos especiales">

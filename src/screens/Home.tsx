@@ -231,6 +231,11 @@ function Hero({ engine }: { engine: EngineResult }) {
               − recupero <span className="font-semibold">{formatARS(-w.arrastre)}</span>
             </span>
           )}
+          {w.ajuste > 0 && (
+            <span className="rounded-lg bg-warn/10 px-2.5 py-1.5 text-warn">
+              − falta en gastos <span className="font-semibold">{formatARS(w.ajuste)}</span>
+            </span>
+          )}
           {engine.pendientes > 0 && (
             <span className="rounded-lg bg-white/[0.05] px-2.5 py-1.5 text-muted">incluye {engine.pendientes} semana(s) sin corte</span>
           )}

@@ -168,6 +168,16 @@ export function Ahorro() {
                     Ahorrar
                   </Button>
                 </div>
+              ) : reserva.paraSacar > 0 && actual && actual.ajuste > 0 ? (
+                <div className="mt-3 grid justify-items-start gap-3">
+                  <p className="text-[13px] text-warn">
+                    Te faltan {formatARS(reserva.paraSacar)} en gastos: ya están descontados de tu límite (esta semana, {formatARS(actual.ajuste)} menos;
+                    el resto, en las que quedan del mes). Si preferís, sacalos del ahorro y el límite vuelve.
+                  </p>
+                  <Button size="sm" variant="secondary" icon={<PiggyBank className="size-4" />} onClick={() => openSheet({ kind: "ahorrar", sacar: true })}>
+                    Sacar del ahorro
+                  </Button>
+                </div>
               ) : reserva.paraSacar > 0 ? (
                 <div className="mt-3 flex items-center justify-between gap-3">
                   <p className="text-[13px] text-warn">Te faltan {formatARS(reserva.paraSacar)} en gastos: pasalos desde ahorro (o ajustá esta semana).</p>

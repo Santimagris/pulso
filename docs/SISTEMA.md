@@ -103,7 +103,12 @@ llevan `creadoEn` un segundo antes que el corte → quedan **antes** del corte.
 - "Te sobran" = gastos − (tarjetas del mes pendientes **al corte** + lo que queda de límite esta
   semana + base × lunes que faltan [+ todo el mes que viene si su sueldo ya está en el corte]).
   Todo a la fecha del corte: pagar una tarjeta después no cambia lo que sobra. El Inicio ofrece
-  "Ahorrar" desde $10.000, con el corte de esta semana hecho.
+  "Ahorrar" desde $10.000, con el corte de esta semana hecho. Las semanas que faltan llevan su parte
+  del recupero (si venís recuperando) y un extra "a la semana" cargado después del corte suma a lo que tenés.
+- **Ajuste por lo que falta** (`WeekResult.ajuste`): si "Te faltan" (con el sueldo del mes ya en el
+  corte y reserva de ahorro aparte), el límite de la semana actual baja lo que falta ÷ semanas que quedan
+  del mes. Se recalcula en cada corte con la plata real, sin guardar nada; el arrastre sigue midiéndose
+  contra el límite sin ajuste. Sacar del ahorro lo tapa y el límite vuelve.
 - La tarjeta "Reserva de ahorro" del Inicio, con dólares activados, muestra pesos y dólares por separado.
 
 **El motor es una función pura** `computeEngine(data, hoy)`: todo se recalcula desde los

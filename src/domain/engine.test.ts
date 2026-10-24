@@ -407,18 +407,61 @@ describe("ahorrado este mes", () => {
 
 describe("reservas y pases al ahorro", () => {
   it("ahorrar no es gasto ni toca el límite: solo mueve los saldos hasta el próximo corte", () => {
-    const d = octubre([], (d) => d.cortes.push(corte("2026-10-05", 1_200_000, { ahorro: $(400_000) })));
+    // Necesita 1,6M (4 semanas de 400K) y tiene 2M: sobran 400K.
+    const d = octubre([], (d) => d.cortes.push(corte("2026-10-05", 2_000_000, { ahorro: $(400_000) })));
     const antes = computeEngine(d, "2026-10-07");
     d.pases.push(pase("2026-10-07", 300_000));
     const e = computeEngine(d, "2026-10-07");
     expect(e.actual?.limite).toBe(antes.actual?.limite);
-    expect(e.reservas).toEqual({ gastos: $(900_000), ahorro: $(700_000), pasado: $(300_000), especiales: 0, fecha: "2026-10-07" });
+    expect(e.reservas).toEqual({ gastos: $(1_700_000), ahorro: $(700_000), pasado: $(300_000), especiales: 0, fecha: "2026-10-07" });
 
     // El lunes el corte trae los saldos reales: gastó 100K (el pase no cuenta) y el corte vuelve a mandar.
-    d.cortes.push(corte("2026-10-12", 800_000, { ahorro: $(700_000) }));
+    d.cortes.push(corte("2026-10-12", 1_600_000, { ahorro: $(700_000) }));
     const e2 = computeEngine(d, "2026-10-12");
     expect(e2.intervalos.at(-1)?.gasto).toBe($(100_000));
-    expect(e2.reservas).toEqual({ gastos: $(800_000), ahorro: $(700_000), pasado: 0, especiales: 0, fecha: "2026-10-12" });
+    expect(e2.reservas).toEqual({ gastos: $(1_600_000), ahorro: $(700_000), pasado: 0, especiales: 0, fecha: "2026-10-12" });
+  });
+
+  it("si en gastos no alcanza para lo que queda del mes, el límite baja: lo que falta se reparte entre las semanas", () => {
+    // Necesita 1,6M (4 semanas de 400K) y tiene 1,3M: faltan 300K → 75K menos por semana.
+    const d = octubre([["2026-10-05", 1_300_000]]);
+    const e = computeEngine(d, "2026-10-07");
+    expect(e.actual?.ajuste).toBe($(75_000));
+    expect(e.actual?.limite).toBe($(325_000));
+    // "Te faltan" sigue diciendo cuánto falta (para sacarlo del ahorro, si preferís).
+    expect(necesidadReservaGastos(d, e)!.paraSacar).toBe($(300_000));
+
+    // Gastó justo los 325K: la semana que viene faltan los mismos 300K, entre 3 semanas.
+    d.cortes.push(corte("2026-10-12", 975_000));
+    const e2 = computeEngine(d, "2026-10-12");
+    expect(e2.actual?.arrastre).toBe($(75_000)); // contra el límite sin ajuste le sobraron 75K…
+    expect(e2.actual?.ajuste).toBe($(100_000)); // …pero siguen faltando 300K
+    expect(e2.actual?.limite).toBe($(375_000)); // = 975K / 3 semanas que quedan, con la plata justa
+    // Pasar al ahorro más de lo que sobra también baja el límite.
+    d.pases.push(pase("2026-10-12", 30_000));
+    expect(computeEngine(d, "2026-10-12").actual?.limite).toBe($(365_000));
+  });
+
+  it("antes de cobrar el sueldo del mes (o si lo cargaste después del corte) no se ajusta el límite", () => {
+    const d = base();
+    d.cortes.push(corte("2026-10-05", 0));
+    expect(computeEngine(d, "2026-10-07").actual?.ajuste).toBe(0);
+    d.ingresos.push(sueldo("2026-10-06", 2_000_000));
+    expect(computeEngine(d, "2026-10-07").actual?.ajuste).toBe(0);
+    // Ya con el sueldo en el corte: gastó 100K, pero dejó 500K en ahorro y en gastos quedan 1,4M para 1,5M.
+    d.cortes.push(corte("2026-10-07", 1_400_000, { ahorro: $(500_000) }));
+    expect(computeEngine(d, "2026-10-07").actual?.ajuste).toBe($(25_000));
+  });
+
+  it("si venís recuperando, el recupero de las semanas que faltan no cuenta como plata que falta", () => {
+    const d = octubre([
+      ["2026-10-05", 1_600_000],
+      ["2026-10-12", 1_000_000], // gastó 600K de 400K: 200K de recupero, 100K en cada una de las 2 que quedan después
+    ]);
+    const e = computeEngine(d, "2026-10-12");
+    expect(e.actual?.arrastre).toBeCloseTo($(-200_000 / 3));
+    expect(necesidadReservaGastos(d, e)!.diferencia).toBeCloseTo(0);
+    expect(e.actual?.ajuste).toBe(0);
   });
 
   it("lo que pasás al ahorro baja lo que sobra en gastos", () => {
@@ -432,7 +475,7 @@ describe("reservas y pases al ahorro", () => {
     expect(r.paraAhorrar).toBe($(10_000));
   });
 
-  it("sacar del ahorro sube gastos y baja ahorro, sin ser gasto ni tocar el límite: tapa lo que falta", () => {
+  it("sacar del ahorro sube gastos y baja ahorro, sin ser gasto: tapa lo que falta y el límite vuelve", () => {
     const d = octubre([], (d) => {
       d.tarjetas.push(visa);
       d.compras.push(compra({ primerMes: "2026-10", montoCuota: $(200_000) }));
@@ -445,7 +488,9 @@ describe("reservas y pases al ahorro", () => {
     d.pases.push(pase("2026-10-13", -250_000));
     const e = computeEngine(d, "2026-10-13");
     expect(e.reservas).toEqual({ gastos: $(1_250_000), ahorro: $(250_000), pasado: $(-250_000), especiales: 0, fecha: "2026-10-13" });
-    expect(e.actual?.limite).toBe(antes.actual?.limite);
+    expect(antes.actual?.ajuste).toBeCloseTo($(250_000 / 3));
+    expect(e.actual?.ajuste).toBe(0);
+    expect(e.actual?.limite).toBe($(350_000));
     expect(necesidadReservaGastos(d, e)!.diferencia).toBe(0);
 
     // El lunes gastó justo el límite (350K): el pase no cuenta como gasto.

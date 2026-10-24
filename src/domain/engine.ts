@@ -65,6 +65,11 @@ export interface WeekResult {
   /** Arrastre acumulado antes de la semana. */
   acumulado: number;
   limite: number;
+  /**
+   * Lo que se descontó del límite porque la plata de gastos no alcanza para los límites y tarjetas
+   * que quedan del mes (la diferencia se reparte entre las semanas que faltan). Solo la semana actual.
+   */
+  ajuste: number;
   /** Gasto del día a día de la semana (solo semanas cerradas). */
   gastado: number | null;
   /** Gasto ya conocido de la semana (hasta el último corte). */
@@ -331,7 +336,7 @@ export function computeEngine(data: Data, hoy: ISODate): EngineResult {
     const arrastre = carry >= 0 ? carry : carry / lunesRestantes;
     const limite = presupuesto + arrastre;
 
-    const base = { lunes: w, mes, presupuesto, arrastre, acumulado, limite, cobertura };
+    const base = { lunes: w, mes, presupuesto, arrastre, acumulado, limite, ajuste: 0, cobertura };
     if (ultimo.fecha >= fin) {
       const gastado = sumDiario(desde, fin);
       carry += presupuesto - gastado;
@@ -416,7 +421,7 @@ export function computeEngine(data: Data, hoy: ISODate): EngineResult {
     fecha: [ultimo.fecha, ...movimientos.map((x) => x.fecha), ...especialesDespues.map((x) => x.fecha)].sort().at(-1)!,
   };
 
-  return {
+  const result: EngineResult = {
     hoy,
     inicio,
     ultimoCorte: ultimo,
@@ -430,6 +435,22 @@ export function computeEngine(data: Data, hoy: ISODate): EngineResult {
     intervalos,
     resumenes,
   };
+
+  // Si la plata de gastos no alcanza para lo que queda del mes, el límite baja: lo que falta se
+  // reparte entre las semanas que quedan (como un recupero). Así el límite es plata que tenés.
+  // Solo con el sueldo del mes ya en el corte: antes de cobrar, la plata siempre "falta".
+  const sueldoEnCorte =
+    actual != null &&
+    data.ingresos.some((i) => i.tipo === "sueldo" && mesDeIngreso(i) === actual.mes && eventKey(i) <= eventKey(ultimo));
+  if (actual && sueldoEnCorte && data.settings.usaReservaAhorro) {
+    const falta = -(necesidadReservaGastos(data, result)?.diferencia ?? 0);
+    if (falta >= 100) {
+      const semanasRestantes = Math.max(1, getPlan(actual.mes).lunes.filter((l) => l >= actual.lunes).length);
+      actual.ajuste = falta / semanasRestantes;
+      actual.limite -= actual.ajuste;
+    }
+  }
+  return result;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -453,8 +474,10 @@ export function necesidadReservaGastos(data: Data, engine: EngineResult) {
       .reduce((s, b) => s + billPresupuestoARS(b, tc), 0);
 
   const plan = engine.meses[actual.mes];
-  const restoSemana = Math.max(0, actual.limite - actual.gastadoParcial);
-  const semanasQueFaltan = plan.lunes.filter((l) => l > actual.lunes).length * plan.base;
+  // Sin el ajuste por lo que falta: esto es lo que lo calcula.
+  const restoSemana = Math.max(0, actual.limite + actual.ajuste - actual.gastadoParcial);
+  // Si venís recuperando, las semanas que faltan también traen su parte del recupero.
+  const semanasQueFaltan = plan.lunes.filter((l) => l > actual.lunes).length * (plan.base + Math.min(0, actual.arrastre));
 
   const sig = addMonthsISO(actual.mes, 1);
   const cobroSig = data.ingresos.some((i) => i.tipo === "sueldo" && mesDeIngreso(i) === sig && eventKey(i) <= k);
@@ -462,7 +485,11 @@ export function necesidadReservaGastos(data: Data, engine: EngineResult) {
   const mesQueViene = planSig ? pendientesAlCorte(sig) + planSig.base * planSig.lunes.length : 0;
 
   const necesario = pendientesAlCorte(actual.mes) + restoSemana + semanasQueFaltan + mesQueViene;
-  const tenes = reservas.gastos;
+  // Un extra "a la semana" cargado después del corte ya está en el límite: también en lo que tenés.
+  const extrasDespues = data.ingresos
+    .filter((i) => i.tipo === "extra" && i.destino === "semana" && eventKey(i) > k)
+    .reduce((s, i) => s + i.monto, 0);
+  const tenes = reservas.gastos + extrasDespues;
   const diferencia = tenes - necesario;
   return {
     necesario,
