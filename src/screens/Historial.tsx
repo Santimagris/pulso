@@ -3,6 +3,7 @@ import { useMemo, useState, type ReactNode } from "react";
 
 import { dayLabel, monthLabel, weekRangeLabel } from "@/domain/dates";
 import { valorSaldos } from "@/domain/engine";
+import { ahorradoEnMes } from "@/domain/metrics";
 import { formatARS, formatPercent } from "@/domain/money";
 import { useEngine } from "@/lib/hooks";
 import { cn } from "@/lib/cn";
@@ -77,6 +78,7 @@ function Semanas() {
 
 function Meses() {
   const engine = useEngine();
+  const data = useApp((s) => s.data);
   const meses = [...engine.resumenes].reverse();
   if (!meses.length) return <Card><Empty title="Todavía no hay meses" text="Hacé tu primer corte." /></Card>;
   return (
@@ -109,7 +111,15 @@ function Meses() {
               {r.especialesDirectos > 0 && linea("Especiales", `− ${formatARS(r.especialesDirectos)}`, "text-info")}
               <div className="my-1 h-px bg-line" />
               {linea("Consumo total", formatARS(r.consumo), "font-medium text-ink")}
-              {r.completo &&
+              {r.completo && r.parcial && ahorradoEnMes(data, engine, r.mes) != null && (
+                <>
+                  {linea("Pasaste al ahorro", formatARS(ahorradoEnMes(data, engine, r.mes) ?? 0), "text-good font-medium")}
+                  <p className="mt-1 text-[12px] text-faint">
+                    Arrancaste a mitad de mes: lo que gastaste antes del primer corte no está, así que el ahorro real no se puede calcular. Esto es lo que creció tu reserva de ahorro.
+                  </p>
+                </>
+              )}
+              {r.completo && !r.parcial &&
                 linea(
                   "Ahorro real",
                   `${formatARS(r.ahorroReal)}${r.ingresos > 0 ? ` · ${formatPercent(r.ahorroReal / r.ingresos)}` : ""}`,

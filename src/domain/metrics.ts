@@ -1,5 +1,5 @@
 import { addMonthsISO, monthOf, monthsBetween } from "./dates";
-import { valorSaldos, type EngineResult, type MonthSummary } from "./engine";
+import { movidosAlAhorro, valorSaldos, type EngineResult, type MonthSummary } from "./engine";
 import type { Data, ISOMonth, Meta } from "./types";
 
 export interface Metrics {
@@ -50,19 +50,31 @@ export function computeMetrics(data: Data, e: EngineResult): Metrics {
 }
 
 /**
- * Lo que creció tu ahorro (reserva + dólares, al tipo de cambio actual) en el mes en curso: de tu
- * último corte antes del mes (o del primero del mes, si empezaste a mitad) hasta hoy. Es lo que
- * ahorraste de verdad, para comparar con el plan. Solo con reserva de ahorro aparte.
+ * Lo que creció tu ahorro (reserva + dólares, al tipo de cambio actual) en un mes: desde cómo estaba
+ * al empezar el mes (o tu primer corte, si empezaste a mitad) hasta hoy, o hasta fin de mes si ya
+ * cerró. Es lo que ahorraste de verdad, para comparar con el plan. Solo con reserva de ahorro aparte.
  */
 export function ahorradoEsteMes(data: Data, e: EngineResult, mes: ISOMonth): number | null {
   const u = e.ultimoCorte;
   if (!data.settings.usaReservaAhorro || !u || !e.reservas) return null;
   const tc = data.settings.tipoCambio;
   const cortes = [...data.cortes].sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : a.creadoEn < b.creadoEn ? -1 : 1));
-  const ref = cortes.filter((c) => c.fecha < `${mes}-01`).at(-1) ?? cortes.find((c) => monthOf(c.fecha) === mes);
-  if (!ref) return null;
-  return e.reservas.ahorro + u.usd * tc - (ref.ahorro + ref.usd * tc);
+  // Ahorro justo antes de una fecha: el último corte previo más lo que pasaste después y antes de esa fecha.
+  const antesDe = (f: string) => {
+    const c = cortes.filter((x) => x.fecha < f).at(-1);
+    if (!c) return null;
+    return c.ahorro + c.usd * tc + movidosAlAhorro(data, c).filter((x) => x.fecha < f).reduce((s, x) => s + x.monto, 0);
+  };
+  const primero = cortes.find((c) => monthOf(c.fecha) === mes);
+  const inicio = antesDe(`${mes}-01`) ?? (primero ? primero.ahorro + primero.usd * tc : null);
+  if (inicio == null) return null;
+  const sig = `${addMonthsISO(mes, 1)}-01`;
+  const fin = u.fecha < sig ? e.reservas.ahorro + u.usd * tc : antesDe(sig);
+  return fin == null ? null : fin - inicio;
 }
+
+/** Alias: también sirve para meses ya cerrados (y para los parciales, donde ingresos − consumo no dice nada). */
+export const ahorradoEnMes = ahorradoEsteMes;
 
 export interface GoalProjection {
   meta: Meta;

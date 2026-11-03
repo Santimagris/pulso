@@ -14,7 +14,7 @@ import {
 import { mondaysInMonth, weekRangeLabel } from "./dates";
 import { emptyData, normalizeData } from "./defaults";
 import { computeEngine, necesidadReservaGastos, planMes } from "./engine";
-import { ahorradoEsteMes, computeMetrics, projectGoal } from "./metrics";
+import { ahorradoEnMes, ahorradoEsteMes, computeMetrics, projectGoal } from "./metrics";
 import type { Compra, Corte, Data, GastoEspecial, Ingreso, PagoTarjeta, PaseAlAhorro, Recurrente, Tarjeta } from "./types";
 
 /* ------------------------------- helpers ------------------------------- */
@@ -402,6 +402,21 @@ describe("ahorrado este mes", () => {
     expect(ahorradoEsteMes(d, computeEngine(d, "2026-10-18"), "2026-10")).toBe($(380_000));
     d.settings.usaReservaAhorro = false;
     expect(ahorradoEsteMes(d, computeEngine(d, "2026-10-18"), "2026-10")).toBeNull();
+  });
+
+  it("en un mes ya cerrado cuenta hasta su último corte (más lo pasado después, dentro del mes)", () => {
+    const d = octubre([], (d) => {
+      d.cortes.push(corte("2026-10-13", 1_000_000));
+      d.cortes.push(corte("2026-10-26", 600_000, { ahorro: $(380_000) }));
+      d.pases.push(pase("2026-10-28", 20_000));
+      d.cortes.push(corte("2026-11-02", 2_000_000, { ahorro: $(400_000) }));
+      d.pases.push(pase("2026-11-03", 425_000));
+    });
+    const e = computeEngine(d, "2026-11-03");
+    // Octubre: 380K + 20K del 28/10; el pase de noviembre no cuenta.
+    expect(ahorradoEnMes(d, e, "2026-10")).toBe($(400_000));
+    // Noviembre (en curso): 400K + 425K − 400K del corte de octubre.
+    expect(ahorradoEnMes(d, e, "2026-11")).toBe($(425_000));
   });
 });
 

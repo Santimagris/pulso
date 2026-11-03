@@ -108,7 +108,12 @@ llevan `creadoEn` un segundo antes que el corte → quedan **antes** del corte.
 - **Ajuste por lo que falta** (`WeekResult.ajuste`): si "Te faltan" (con el sueldo del mes ya en el
   corte y reserva de ahorro aparte), el límite de la semana actual baja lo que falta ÷ semanas que quedan
   del mes. Se recalcula en cada corte con la plata real, sin guardar nada; el arrastre sigue midiéndose
-  contra el límite sin ajuste. Sacar del ahorro lo tapa y el límite vuelve.
+  contra el límite sin ajuste. Sacar del ahorro lo tapa y el límite vuelve. El Inicio no lo muestra
+  aparte (ya está en el límite); lo explica la tarjeta "Organizá" de Ahorro.
+- **Ahorrado en el mes** (`ahorradoEsteMes`/`ahorradoEnMes`): cuánto creció la reserva de ahorro, del
+  inicio del mes (último corte previo + pases hasta el 1) a hoy o a fin de mes. En un mes parcial
+  (arrancaste a mitad) Historial muestra esto en vez de "Ahorro real" (ingresos − consumo), que ahí
+  no dice nada porque falta lo gastado antes del primer corte.
 - La tarjeta "Reserva de ahorro" del Inicio, con dólares activados, muestra pesos y dólares por separado.
 
 **El motor es una función pura** `computeEngine(data, hoy)`: todo se recalcula desde los
